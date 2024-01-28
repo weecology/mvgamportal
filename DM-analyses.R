@@ -101,4 +101,16 @@ get_preds= function(split, model) {
 
 DMcontrol_dat$ar1preds=pmap(list(DMcontrol_dat$splits, DMcontrol_dat$ar1mod), get_preds)
 
-#saveRDS(DMcontrol_dat$ar1pred, file="DMcontrol_dat_ar1preds.RDS")
+#score forecasts####
+
+get_scores= function (split, preds) {
+  
+  data_test=assessment (split)
+  
+  pred_score=mvgam::score(preds)
+  
+}
+
+DMcontrol_dat$ar1score=pmap(list(DMcontrol_dat$splits, DMcontrol_dat$ar1preds), get_scores)
+
+save(DMcontrol_dat, file="DMcontrol_dat_ar1.RData")
