@@ -44,12 +44,13 @@ covars=weather(level="newmoon", fill=TRUE, horizon=365, path=get_default_data_pa
   select(newmoonnumber,meantemp, mintemp, maxtemp, precipitation, warm_precip, cool_precip)
 
 #up to Dec 2019 only
-dmcont_covs=right_join(covars,dmcont_dat, by="newmoonnumber")
+dmcont_covs=right_join(covars,dmcont_dat, by="newmoonnumber")%>%filter(!newmoonnumber>526)
 
 dmdat=dmcont_covs%>%
   rename("abundance"="DM")%>%
-  mutate(time= seq(1:length(dmcont_covs$censusdate)), series=as.factor('DM'))%>%
-  select(time, series, abundance, meantemp,warm_precip, cool_precip)
+  mutate(time= newmoonnumber-min(newmoonnumber)+1, series=as.factor('DM'))%>%
+  select(time, series, abundance, meantemp,warm_precip, cool_precip)%>%
+  arrange(time)
 
 #create rolling origin object for analysis
 
@@ -58,7 +59,7 @@ dmdat=dmcont_covs%>%
 n_moons_yr=12
 n_yrs=2 #min. TS length
 n_moons_train=n_moons_yr*n_yrs
-n_moons_test=3
+n_moons_test=
 
 DMcontrol_dat <- 
   rolling_origin(
