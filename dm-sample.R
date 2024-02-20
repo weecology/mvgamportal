@@ -111,7 +111,7 @@ fit_cast_score=function(split) {
                newdata= data_test,
                priors = prior(normal(0, 2), class = Intercept),
                chains = 4,
-               burnin = 100)
+               samples = 200)
   
   preds= as.vector(forecast(model, data_test))
   
@@ -132,7 +132,7 @@ dmdat20v1$output=map(dmdat20v1$splits, fit_cast_score)
 
 d1=as.data.frame(dmdat20v1[[3]][[1]][[2]]$forecasts$DM)
 d2=as.data.frame(dmdat20v1[[3]][[2]][[2]]$forecasts$DM)
-d3=s.data.frame(dmdat20v1[[3]][[3]][[2]]$forecasts$DM)
+d3=as.data.frame(dmdat20v1[[3]][[3]][[2]]$forecasts$DM)
 
 #scores:
 
@@ -151,10 +151,9 @@ m3=dmdat20v1[[3]][[3]][[1]]$model_output
 #automate getting forecast/score values at each "split"
 
 #try unnest/unlist
-d2=dmdat20v1%>%unnest(output)
+u2=dmdat20v1%>%unnest(output)
 
-
-#######
+##########
 d7=dmdat20v1%>%unnest(output)%>%
   mutate(mod_list=output[[3]][[1]][["model_output"]],
          pred_list=output[[3]][[2]][["forecasts"]]$DM,
