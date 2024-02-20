@@ -155,7 +155,6 @@ result= c()
 for (i in 1:3) {
   
   item = paste("forecast_", i)
-  # result[item]= dmdat20v1[[3]][[i]][[2]]
   result[[item]]= dmdat20v1$output[[i]][[2]]$forecasts$DM
 }
 
