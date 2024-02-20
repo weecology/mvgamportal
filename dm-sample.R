@@ -14,12 +14,13 @@ require(vctrs)
 require(lubridate)
 require(rsample)
 
+options(mc.cores = parallel::detectCores())
 
 #generate data subsets####
 
 rodent_data=summarize_rodent_data(
   path = get_default_data_path(),
-  clean = TRUE,
+  clean = FALSE,
   level="Treatment",
   type = "Rodents",
   plots = "Longterm",
@@ -37,7 +38,7 @@ rodent_data=summarize_rodent_data(
 )
 
 dmcont_dat=rodent_data%>%
-  filter(treatment=="control")%>%
+  filter(treatment%in%c("control", NA))%>%
   select(censusdate,newmoonnumber,DM)
 
 covars=weather(level="newmoon", fill=TRUE, horizon=365, path=get_default_data_path())%>%
@@ -50,22 +51,51 @@ dmdat=dmcont_covs%>%
   rename("abundance"="DM")%>%filter(!newmoonnumber>526)%>%
   mutate(time=newmoonnumber - min(newmoonnumber) + 1)%>%
   mutate(series=as.factor('DM'))%>%
-  select(time, series, abundance, meantemp,warm_precip, cool_precip)
+  select(time, censusdate, newmoonnumber, series, abundance, meantemp,warm_precip, cool_precip)%>%
+  arrange(time)
 
 
-#shorter subset
-dmdat_sample=dmdat%>%filter(!time<1, !time>46)
+#shorter subset moving window for different lengths of training data
+#apply sliding-index
+dmdat_slide=dmdat%>%
+  mutate(year=lubridate::year(censusdate))%>%arrange(time)
 
-dmdat1=rolling_origin(
-  data       = dmdat_sample, #all DM control data
-  initial    = 12, #samples used for modelling (training)
-  assess     = 24, # number of samples used for each assessment resample (horizon)
-  cumulative = TRUE #length of analysis set is growing; 
+dmdat2=sliding_index(
+  data= dmdat, #all DM control data
+  newmoonnumber,
+  lookback=24,
+  assess_stop=12,
+  complete = TRUE
+)
+
+dmdat5=sliding_index(
+  data= dmdat, #all DM control data
+  newmoonnumber,
+  lookback=60,
+  assess_stop=12,
+  complete = TRUE
+)
+
+dmdat10=sliding_index(
+  data= dmdat, #all DM control data
+  newmoonnumber,
+  lookback=120,
+  assess_stop=12,
+  complete = TRUE
+)
+
+dmdat20=sliding_index(
+  data= dmdat, #all DM control data
+  newmoonnumber,
+  lookback=240,
+  assess_stop=12,
+  complete = TRUE
 )
 
 #function for fitting AR1 model, getting forecasts, and scoring them
 #output is a list
 #for testing purposes, set a short burn-in period
+#trend formula as suggested by Nick
 
 fit_cast_score=function(split) {
   
@@ -74,10 +104,12 @@ fit_cast_score=function(split) {
   data_test= assessment(split) # test data
   
   model= mvgam(abundance~1, 
+               trend_formula = ~ -1,
                trend_model="AR1",
                family= poisson(link = "log"), 
                data=data_train,
-               newdat= data_test,
+               newdata= data_test,
+               priors = prior(normal(0, 2), class = Intercept),
                chains = 4,
                burnin = 100)
   
@@ -90,6 +122,35 @@ fit_cast_score=function(split) {
 }
 
 #fit, predict, score
+dmdat20v1=dmdat20[1:3,]
 
-dmdat1$output=map(dmdat1$splits, fit_cast_score)
+dmdat20v1$output=map(dmdat20v1$splits, fit_cast_score)
+
+dmdat20v2=dmdat20[1:3,]
+dmdat20v22=dmdat20v2%>%
+  nest(-splits)%>%
+  mutate(model=mvgam(abundance~1, 
+                     trend_formula = ~ -1,
+                     trend_model="AR1",
+                     family= poisson(link = "log"), 
+                     data=data_train,
+                     newdata= data_test,
+                     priors = prior(normal(0, 2), class = Intercept),
+                     chains = 4,
+                     burnin = 100),
+         preds=mvgam::forecast())
+
+#access results
+#predictions: 
+#try sample at a single split
+
+d1=as.data.frame(dmdat20v1[[3]][[1]][[2]]$forecasts$DM)
+
+#try unnest
+d2=dmdat20v1%>%unnest(output)
+
+d5=dmdat20v1%>%unnest(output)%>%
+  mutate(model=model_output,
+         preds=forecasts,
+         scores=DM)
 
