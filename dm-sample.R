@@ -127,8 +127,8 @@ dmdat20v1=dmdat20[1:3,]
 dmdat20v1$output=map(dmdat20v1$splits, fit_cast_score)
 
 #access results
+
 #predictions: 
-#try sample at a single split
 
 d1=as.data.frame(dmdat20v1[[3]][[1]][[2]]$forecasts$DM)
 d2=as.data.frame(dmdat20v1[[3]][[2]][[2]]$forecasts$DM)
@@ -139,6 +139,13 @@ d3=s.data.frame(dmdat20v1[[3]][[3]][[2]]$forecasts$DM)
 s1=as.data.frame(dmdat20v1[[3]][[1]][[3]]$DM)
 s2=as.data.frame(dmdat20v1[[3]][[2]][[3]]$DM)
 s3=as.data.frame(dmdat20v1[[3]][[3]][[3]]$DM)
+
+
+#assess model performance/convergence
+
+m1=dmdat20v1[[3]][[1]][[1]]$model_output
+m2=dmdat20v1[[3]][[2]][[1]]$model_output
+m3=dmdat20v1[[3]][[3]][[1]]$model_output
 
 #need to figure out how automate getting d1-d3/s1-s3 
 #automate getting forecast/score values at each "split"
