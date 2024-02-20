@@ -148,6 +148,17 @@ m2=dmdat20v1[[3]][[2]][[1]]$model_output
 m3=dmdat20v1[[3]][[3]][[1]]$model_output
 
 #need to figure out how automate getting d1-d3/s1-s3 
+
+#this just gets the first value in each "split"
+result= c()
+
+for (i in 1:3) {
+  
+  item = paste("forecast_", i)
+  # result[item]= dmdat20v1[[3]][[i]][[2]]
+  result[item]= (dmdat20v1$output[[i]][[2]]$forecasts$DM)
+}
+
 #automate getting forecast/score values at each "split"
 
 #try unnest/unlist
