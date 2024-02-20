@@ -1,6 +1,6 @@
 #preliminary analyses for timeseries length and forecasting project
 
-#load packages####
+#packages####
 
 #for mvgam installation refer to: https://course.naturecast.org/lessons/r-complex-time-series-models-1/material/
 
@@ -36,6 +36,7 @@ rodent_data=summarize_rodent_data(
   download_if_missing = TRUE,
   quiet = FALSE
 )
+#DM data####
 
 dmcont_dat=rodent_data%>%
   filter(treatment%in%c("control", NA))%>%
@@ -88,12 +89,61 @@ dmdat20=sliding_index(
   complete = TRUE
 )
 
+#PP data####
+ppcont_dat=rodent_data%>%
+  filter(treatment%in%c("control", NA))%>%
+  select(censusdate,newmoonnumber,PP)
+
+#up to Dec 2019 only
+ppcont_covs=right_join(covars,ppcont_dat, by="newmoonnumber")
+
+ppdat=ppcont_covs%>%
+  rename("abundance"="PP")%>%filter(!newmoonnumber>526)%>%
+  mutate(time=newmoonnumber - min(newmoonnumber) + 1)%>%
+  mutate(series=as.factor('PP'))%>%
+  select(time, censusdate, newmoonnumber, series, abundance, meantemp,warm_precip, cool_precip)%>%
+  arrange(time)
+
+#apply sliding-index to create subsets of training data at different windows
+
+ppdat2=sliding_index(
+  data= ppdat, #all DM control data
+  newmoonnumber,
+  lookback=24,
+  assess_stop=12,
+  complete = TRUE
+)
+
+ppdat5=sliding_index(
+  data= ppdat, #all DM control data
+  newmoonnumber,
+  lookback=60,
+  assess_stop=12,
+  complete = TRUE
+)
+
+ppdat10=sliding_index(
+  data= ppdat, #all DM control data
+  newmoonnumber,
+  lookback=120,
+  assess_stop=12,
+  complete = TRUE
+)
+
+ppdat20=sliding_index(
+  data= ppdat, #all DM control data
+  newmoonnumber,
+  lookback=240,
+  assess_stop=12,
+  complete = TRUE
+)
+
 #function for fitting AR1 model, getting forecasts, and scoring them
 #output is a list
 #for testing purposes, set fewer iters
 #trend formula as suggested by Nick
 
-fit_cast_score=function(split) {
+fitmod1_cast_score=function(split) {
   
   data_train= analysis(split) #training data
   
@@ -107,7 +157,7 @@ fit_cast_score=function(split) {
                newdata= data_test,
                priors = prior(normal(0, 2), class = Intercept),
                chains = 4,
-               samples = 200)
+               samples = 100)
   
   preds= as.vector(forecast(model, data_test))
   
@@ -117,52 +167,17 @@ fit_cast_score=function(split) {
   
 }
 
-#shorter subset moving window for different lengths of training data
-dmdat20v1=dmdat20[1:5,]
+#fit AR1 model, predict, score for different subsets of data
 
-#fit, predict, score
-dmdat20v1$output=map(dmdat20v1$splits, fitmod1_cast_score)
-#dm1=lapply(dmdat20v1$splits, fitmod1_cast_score)
-
-#access results
-
-#predictions
-N=length(dmdat20v1$id)
-
-preds= c()
-
-for (i in 1:N) {
-  
-  item = paste("forecast_", i)
-  preds[[item]]= dmdat20v1$output[[i]][[2]]$forecasts$DM
-}
-
-#get scores
-score= c()
-
-for (i in 1:N) {
-  
-  item = paste("score_", i)
-  score[[item]]= dmdat20v1$output[[i]][[3]]$DM
-}
-
-###################
-#this part not needed; just for manual checking and stuff
-#predictions: 
-
-d1=as.data.frame(dmdat20v1[[3]][[1]][[2]]$forecasts$DM)
-d2=as.data.frame(dmdat20v1[[3]][[2]][[2]]$forecasts$DM)
-d3=as.data.frame(dmdat20v1[[3]][[3]][[2]]$forecasts$DM)
-
-#scores:
-
-s1=as.data.frame(dmdat20v1[[3]][[1]][[3]]$DM)
-s2=as.data.frame(dmdat20v1[[3]][[2]][[3]]$DM)
-s3=as.data.frame(dmdat20v1[[3]][[3]][[3]]$DM)
+#DM output####
+dmdat2$output=map(dmdat2$splits, fitmod1_cast_score)
+dmdat5$output=map(dmdat5$splits, fitmod1_cast_score)
+dmdat10$output=map(dmdat10$splits, fitmod1_cast_score)
+dmdat20$output=map(dmdat20$splits, fitmod1_cast_score)
 
 
-#assess model performance/convergence
-
-m1=dmdat20v1[[3]][[1]][[1]]$model_output
-m2=dmdat20v1[[3]][[2]][[1]]$model_output
-m3=dmdat20v1[[3]][[3]][[1]]$model_output
+#PP output####
+ppdat2$output=map(ppdat2$splits, fitmod1_cast_score)
+ppdat5$output=map(ppdat5$splits, fitmod1_cast_score)
+ppdat10$output=map(ppdat10$splits, fitmod1_cast_score)
+ppdat20$output=map(ppdat20$splits, fitmod1_cast_score)
