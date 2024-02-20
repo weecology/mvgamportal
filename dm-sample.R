@@ -126,6 +126,36 @@ dmdat20v1=dmdat20[1:3,]
 
 dmdat20v1$output=map(dmdat20v1$splits, fit_cast_score)
 
+#access results
+#predictions: 
+#try sample at a single split
+
+d1=as.data.frame(dmdat20v1[[3]][[1]][[2]]$forecasts$DM)
+d2=as.data.frame(dmdat20v1[[3]][[2]][[2]]$forecasts$DM)
+d3=s.data.frame(dmdat20v1[[3]][[3]][[2]]$forecasts$DM)
+
+#scores:
+
+s1=as.data.frame(dmdat20v1[[3]][[1]][[3]]$DM)
+s2=as.data.frame(dmdat20v1[[3]][[2]][[3]]$DM)
+s3=as.data.frame(dmdat20v1[[3]][[3]][[3]]$DM)
+
+#need to figure out how automate getting d1-d3/s1-s3 
+#automate getting forecast/score values at each "split"
+
+#try unnest/unlist
+d2=dmdat20v1%>%unnest(output)
+
+
+#######
+d7=dmdat20v1%>%unnest(output)%>%
+  mutate(mod_list=output[[3]][[1]][["model_output"]],
+         pred_list=output[[3]][[2]][["forecasts"]]$DM,
+         score_list=output[[3]][[2]][["DM"]])
+
+
+#DIFFERENT WAY######################################
+
 dmdat20v2=dmdat20[1:3,]
 dmdat20v22=dmdat20v2%>%
   nest(-splits)%>%
@@ -139,18 +169,3 @@ dmdat20v22=dmdat20v2%>%
                      chains = 4,
                      burnin = 100),
          preds=mvgam::forecast())
-
-#access results
-#predictions: 
-#try sample at a single split
-
-d1=as.data.frame(dmdat20v1[[3]][[1]][[2]]$forecasts$DM)
-
-#try unnest
-d2=dmdat20v1%>%unnest(output)
-
-d5=dmdat20v1%>%unnest(output)%>%
-  mutate(model=model_output,
-         preds=forecasts,
-         scores=DM)
-
