@@ -162,5 +162,3 @@ s3=as.data.frame(dmdat20v1[[3]][[3]][[3]]$DM)
 m1=dmdat20v1[[3]][[1]][[1]]$model_output
 m2=dmdat20v1[[3]][[2]][[1]]$model_output
 m3=dmdat20v1[[3]][[3]][[1]]$model_output
-
-#need to figure out how automate getting d1-d3/s1-s3 
