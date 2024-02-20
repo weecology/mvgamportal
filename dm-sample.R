@@ -54,11 +54,7 @@ dmdat=dmcont_covs%>%
   select(time, censusdate, newmoonnumber, series, abundance, meantemp,warm_precip, cool_precip)%>%
   arrange(time)
 
-
-#shorter subset moving window for different lengths of training data
-#apply sliding-index
-dmdat_slide=dmdat%>%
-  mutate(year=lubridate::year(censusdate))%>%arrange(time)
+#apply sliding-index to create subsets of training data at different windows
 
 dmdat2=sliding_index(
   data= dmdat, #all DM control data
@@ -94,7 +90,7 @@ dmdat20=sliding_index(
 
 #function for fitting AR1 model, getting forecasts, and scoring them
 #output is a list
-#for testing purposes, set a short burn-in period
+#for testing purposes, set fewer iters
 #trend formula as suggested by Nick
 
 fit_cast_score=function(split) {
@@ -121,13 +117,33 @@ fit_cast_score=function(split) {
   
 }
 
-#fit, predict, score
+#shorter subset moving window for different lengths of training data
 dmdat20v1=dmdat20[1:3,]
 
+#fit, predict, score
 dmdat20v1$output=map(dmdat20v1$splits, fit_cast_score)
 
 #access results
 
+#predictions
+preds= c()
+
+for (i in 1:length(dmdat20v1$id)) {
+  
+  item = paste("forecast_", i)
+  preds[[item]]= dmdat20v1$output[[i]][[2]]$forecasts$DM
+}
+
+#get scores
+score= c()
+
+for (i in 1:length(dmdat20v1$id)) {
+  
+  item = paste("score_", i)
+  score[[item]]= dmdat20v1$output[[i]][[3]]$DM
+}
+
+###################
 #predictions: 
 
 d1=as.data.frame(dmdat20v1[[3]][[1]][[2]]$forecasts$DM)
@@ -148,41 +164,3 @@ m2=dmdat20v1[[3]][[2]][[1]]$model_output
 m3=dmdat20v1[[3]][[3]][[1]]$model_output
 
 #need to figure out how automate getting d1-d3/s1-s3 
-
-#this just gets the first value in each "split"
-result= c()
-
-for (i in 1:3) {
-  
-  item = paste("forecast_", i)
-  # result[item]= dmdat20v1[[3]][[i]][[2]]
-  result[[item]]= dmdat20v1$output[[i]][[2]]$forecasts$DM
-}
-
-#automate getting forecast/score values at each "split"
-
-#try unnest/unlist
-u2=dmdat20v1%>%unnest(output)
-
-##########
-d7=dmdat20v1%>%unnest(output)%>%
-  mutate(mod_list=output[[3]][[1]][["model_output"]],
-         pred_list=output[[3]][[2]][["forecasts"]]$DM,
-         score_list=output[[3]][[2]][["DM"]])
-
-
-#DIFFERENT WAY######################################
-
-dmdat20v2=dmdat20[1:3,]
-dmdat20v22=dmdat20v2%>%
-  nest(-splits)%>%
-  mutate(model=mvgam(abundance~1, 
-                     trend_formula = ~ -1,
-                     trend_model="AR1",
-                     family= poisson(link = "log"), 
-                     data=data_train,
-                     newdata= data_test,
-                     priors = prior(normal(0, 2), class = Intercept),
-                     chains = 4,
-                     burnin = 100),
-         preds=mvgam::forecast())
