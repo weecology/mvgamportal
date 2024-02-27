@@ -14,7 +14,7 @@ require(vctrs)
 require(lubridate)
 require(rsample)
 
-options(mc.cores = parallel::detectCores())
+#options(mc.cores = parallel::detectCores())
 
 #generate data subsets####
 
@@ -56,30 +56,6 @@ dmdat=dmcont_covs%>%
 
 #apply sliding-index to create subsets of training data at different windows
 
-dmdat2=sliding_index(
-  data= dmdat, #all DM control data
-  newmoonnumber,
-  lookback=24,
-  assess_stop=12,
-  complete = TRUE
-)
-
-dmdat5=sliding_index(
-  data= dmdat, #all DM control data
-  newmoonnumber,
-  lookback=60,
-  assess_stop=12,
-  complete = TRUE
-)
-
-dmdat10=sliding_index(
-  data= dmdat, #all DM control data
-  newmoonnumber,
-  lookback=120,
-  assess_stop=12,
-  complete = TRUE
-)
-
 dmdat20=sliding_index(
   data= dmdat, #all DM control data
   newmoonnumber,
@@ -93,7 +69,7 @@ dmdat20=sliding_index(
 #for testing purposes, set fewer iters
 #trend formula as suggested by Nick
 
-fit_cast_score=function(split) {
+fitmod1_cast_score=function(split) {
   
   data_train= analysis(split) #training data
   
@@ -122,47 +98,3 @@ dmdat20v1=dmdat20[1:5,]
 
 #fit, predict, score
 dmdat20v1$output=map(dmdat20v1$splits, fitmod1_cast_score)
-#dm1=lapply(dmdat20v1$splits, fitmod1_cast_score)
-
-#access results
-
-#predictions
-N=length(dmdat20v1$id)
-
-preds= c()
-
-for (i in 1:N) {
-  
-  item = paste("forecast_", i)
-  preds[[item]]= dmdat20v1$output[[i]][[2]]$forecasts$DM
-}
-
-#get scores
-score= c()
-
-for (i in 1:N) {
-  
-  item = paste("score_", i)
-  score[[item]]= dmdat20v1$output[[i]][[3]]$DM
-}
-
-###################
-#this part not needed; just for manual checking and stuff
-#predictions: 
-
-d1=as.data.frame(dmdat20v1[[3]][[1]][[2]]$forecasts$DM)
-d2=as.data.frame(dmdat20v1[[3]][[2]][[2]]$forecasts$DM)
-d3=as.data.frame(dmdat20v1[[3]][[3]][[2]]$forecasts$DM)
-
-#scores:
-
-s1=as.data.frame(dmdat20v1[[3]][[1]][[3]]$DM)
-s2=as.data.frame(dmdat20v1[[3]][[2]][[3]]$DM)
-s3=as.data.frame(dmdat20v1[[3]][[3]][[3]]$DM)
-
-
-#assess model performance/convergence
-
-m1=dmdat20v1[[3]][[1]][[1]]$model_output
-m2=dmdat20v1[[3]][[2]][[1]]$model_output
-m3=dmdat20v1[[3]][[3]][[1]]$model_output
