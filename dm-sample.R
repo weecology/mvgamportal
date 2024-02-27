@@ -98,3 +98,5 @@ dmdat20v1=dmdat20[1:5,]
 
 #fit, predict, score
 dmdat20v1$output=map(dmdat20v1$splits, fitmod1_cast_score)
+
+saveRDS(dmdat20v1, "mvgam-sample-output.RDS")
