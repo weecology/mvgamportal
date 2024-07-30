@@ -44,30 +44,46 @@ multi_sp_cont_dat=rodent_data%>%
 covars=weather(level="newmoon", fill=TRUE, horizon=365, path=get_default_data_path())%>%
   select(newmoonnumber,meantemp, mintemp, maxtemp, precipitation, warm_precip, cool_precip)
 
-#Jan 1980-Dec 2019 only
+#Feb 1980-Dec 2019 only
+#zeros in cool_precip causing break
 multi_sp_cont_covs=right_join(covars,multi_sp_cont_dat, by="newmoonnumber")%>%
   pivot_longer(cols=9:15, names_to="species")
 
-multi_sp_cont_covs$series=as.factor(multi_sp_cont_covs$species)
-
 multi_sp_dat=multi_sp_cont_covs%>%
   rename("abundance"="value")%>%filter(!newmoonnumber>526)%>%
-  mutate(time=newmoonnumber - min(newmoonnumber) + 1)%>%
-  select(time, censusdate, newmoonnumber, series, abundance, meantemp,warm_precip, cool_precip)%>%
-  arrange(time)%>%filter(!newmoonnumber<33)
+  mutate(month = lubridate::month(censusdate),
+                year = lubridate::year(censusdate)) %>%
+  mutate(time=newmoonnumber - min(newmoonnumber) + 1, series=as.factor(species))%>%
+  select(time, censusdate,month, year, newmoonnumber, series, abundance, meantemp,warm_precip, cool_precip)%>%
+  arrange(time)%>%filter(!newmoonnumber<32)
+#for some reason, it is important to rename species column to series
 
 #apply sliding-window to create subsets of training data at different windows
 #set 5 years of training data, rolling over every year (every 12 months)
 # set 1 year forward of test data
 
+nyrs=5
+nmon=12
+nsp=7
+
+train_length=nyrs*nmon
+test_length=nmon
+
 multi_sp_dat5=sliding_index(
   data= multi_sp_dat, #all DM, DO, PP, PB, OT, PE, RM control data
   index=newmoonnumber,
-  lookback=60,
-  assess_stop=12,
+  lookback=train_length, #should result in 420 data points (60*7) but I end up wth 427
+  assess_stop=test_length,
   complete = TRUE,
-  step=12
+  step= nsp*nmon
 )
+
+#inspect training data
+in_1=multi_sp_dat5[[1]][[1]][["data"]][multi_sp_dat5[[1]][[1]][["in_id"]],]
+out_1=multi_sp_dat5[[1]][[1]][["data"]][multi_sp_dat5[[1]][[1]][["out_id"]],]
+
+in_2=multi_sp_dat5[[1]][[2]][["data"]][multi_sp_dat5[[1]][[2]][["in_id"]],]
+out_2=multi_sp_dat5[[1]][[2]][["data"]][multi_sp_dat5[[1]][[2]][["out_id"]],]
 
 #function for fitting VAR model, getting forecasts, and scoring them
 #output is a list
@@ -101,6 +117,8 @@ multi_sp_dat5v1=multi_sp_dat5[1:3,]
 
 #fit, predict, score
 multi_sp_dat5v1$output=map(multi_sp_dat5v1$splits, fitmod2_cast_score)
+
+#saveRDS(multi_sp_dat5v1, "multi_sp_sample3_output.RDS")
 
 #make plots of species-level foreceasts
 
