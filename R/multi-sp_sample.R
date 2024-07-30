@@ -326,4 +326,32 @@ axis(1,time3,at=c(1:12))
 points(obs3, col="red", pch=21, cex=0.5, bg="red")
 lines(obs3, col="black")
 
+#OT
+obs1=unlist(multi_sp_dat5v1[[3]][[1]][[2]]$test_observations$OT) #get test data
+fors1=as.matrix(multi_sp_dat5v1[[3]][[1]][[2]]$forecasts$OT) # get forecasts
+time1=unlist(multi_sp_dat5v1[[3]][[1]][[2]]$test_times) # get test
 
+obs2=unlist(multi_sp_dat5v1[[3]][[2]][[2]]$test_observations$OT) #get test data
+fors2=as.matrix(multi_sp_dat5v1[[3]][[2]][[2]]$forecasts$OT) # get forecasts
+time2=unlist(multi_sp_dat5v1[[3]][[2]][[2]]$test_times) # get test
+
+obs3=unlist(multi_sp_dat5v1[[3]][[3]][[2]]$test_observations$OT) #get test data
+fors3=as.matrix(multi_sp_dat5v1[[3]][[3]][[2]]$forecasts$OT) # get forecasts
+time3=unlist(multi_sp_dat5v1[[3]][[3]][[2]]$test_times) # get test
+
+par(mfrow=c(3,1))
+
+matplot(t(fors1), type="l", col="grey", ylab="count", xaxt="n", main="OT")
+axis(1,time1,at=c(1:12))
+points(obs1, col="red", pch=21, cex=0.5, bg="red")
+lines(obs1, col="black")
+
+matplot(t(fors2), type="l", col="grey", ylab="count", xaxt="n", main="OT")
+axis(1,time2,at=c(1:12))
+points(obs2, col="red", pch=21, cex=0.5, bg="red")
+lines(obs2, col="black")
+
+matplot(t(fors3), type="l", col="grey", ylab="count", xaxt="n", main="OT")
+axis(1,time3,at=c(1:12))
+points(obs3, col="red", pch=21, cex=0.5, bg="red")
+lines(obs3, col="black")
