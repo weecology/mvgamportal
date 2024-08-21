@@ -38,7 +38,7 @@ rodent_data=summarize_rodent_data(
 rodents_table <- left_join(rodent_data,moon_dates)%>%
   left_join(covars)%>%
   left_join(ndvi_dat)%>%
-  filter(!newmoonnumber<85)
+  filter(!newmoonnumber<85, treatment=="control")
 
 # Calculate means and sds of covariates for later unscaled plotting
 rodents_table %>%
@@ -73,7 +73,7 @@ rodents_table %>%
   # dplyr::arrange(year, month) %>%
   # dplyr::group_by(month, year) %>%
   # dplyr::slice_head(n = 1) %>%
-  tidyr::pivot_longer(cols = colnames(rodents_table)[4:24],
+  tidyr::pivot_longer(cols = colnames(rodents_table)[5:25],
                       names_to = 'series', values_to = 'y') %>%
   dplyr::select(y, series, month, year,
                 newmoonnumber, mintemp:ndvi_ma12) %>%
@@ -95,6 +95,7 @@ model_dat %>%
   dplyr::mutate(series = as.factor(series)) %>%
   dplyr::arrange(time, series) -> model_dat
 
+#UNSURE WHY THIS IS FALSE FOR NOW
 (max(model_dat$time) * length(unique(model_dat$series))) == NROW(model_dat)
 
 # Feature engineering
@@ -275,14 +276,14 @@ save(model_dat,
      data_all,
      data_train,
      data_test,
-     file = 'data/rodents_data_tsobjects.rda')
+     file = 'rodents_data_tsobjects.rda')
 
 
 # Load the pre-prepared modelling data
-load('data/rodents_data_tsobjects.rda')
+load('rodents_data_tsobjects.rda')
 
 # Source the bespoke checking / graphical functions
-source('Functions/checking_functions.R')
+source('D:/Dropbox (UFL)/PhD-stuff/mvgamportal/R/checking_functions.R')
 
 # View some of the raw time series
 plot_mvgam_series(data = data_train, series = 'all')
