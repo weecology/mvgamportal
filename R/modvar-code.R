@@ -8,14 +8,6 @@ library(mvgam)
 library(portalr)
 
 # Load the most recent rodents survey table for control plots
-moon_dates=read.csv("https://raw.githubusercontent.com/weecology/PortalData/main/Rodents/moon_dates.csv")
-
-covars=weather(level="newmoon", fill=TRUE, horizon=365, path=get_default_data_path())%>%
-  select(newmoonnumber, meantemp, mintemp, maxtemp, precipitation, warm_precip, cool_precip)%>%
-  mutate(meantemp_lag1=lag(meantemp,order_by=newmoonnumber))
-
-ndvi_dat=ndvi(level="newmoon")
-
 rodent_data=summarize_rodent_data(
   path = get_default_data_path(),
   clean = TRUE,
@@ -33,18 +25,26 @@ rodent_data=summarize_rodent_data(
   effort = TRUE,
   download_if_missing = TRUE,
   quiet = FALSE
-)
+)%>%replace_na(list(treatment='control')) #to include non-census dates
+
+moon_dates=read.csv("https://raw.githubusercontent.com/weecology/PortalData/main/Rodents/moon_dates.csv")
+
+covars=weather(level="newmoon", fill=TRUE, horizon=365, path=get_default_data_path())%>%
+  select(newmoonnumber, meantemp, mintemp, maxtemp, precipitation, warm_precip, cool_precip)%>%
+  mutate(meantemp_lag1=lag(meantemp,order_by=newmoonnumber))
+
+ndvi_dat=ndvi(level="newmoon")%>%filter(!newmoonnumber>569) #max newmoon for rodent data in portalr
 
 rodents_table <- left_join(rodent_data,moon_dates)%>%
   left_join(covars)%>%
   left_join(ndvi_dat)%>%
-  filter(!newmoonnumber<85, treatment=="control")
+  filter(!newmoonnumber<86, treatment=="control")
 
 # Calculate means and sds of covariates for later unscaled plotting
 rodents_table %>%
   dplyr::mutate(month = lubridate::month(newmoondate),
                 year = lubridate::year(newmoondate)) %>%
-  dplyr::filter(year > 1983) %>%
+  dplyr::filter(!newmoonnumber<86) %>% #include only data from 1985
   dplyr::select(mintemp) %>%
   dplyr::summarise(mintemp_mean = mean(mintemp, na.rm = TRUE),
                    mintemp_sd = sd(mintemp, na.rm = TRUE)) -> mintemp_stats
@@ -52,7 +52,7 @@ rodents_table %>%
 rodents_table %>%
   dplyr::mutate(month = lubridate::month(newmoondate),
                 year = lubridate::year(newmoondate)) %>%
-  dplyr::filter(year > 1983) %>%
+  dplyr::filter(!newmoonnumber<86) %>%
   dplyr::select(ndvi) %>%
   dplyr::summarise(ndvi_mean = mean(ndvi, na.rm = TRUE),
                    ndvi_sd = sd(ndvi, na.rm = TRUE)) -> ndvi_stats
@@ -61,7 +61,7 @@ rodents_table %>%
 rodents_table %>%
   dplyr::mutate(month = lubridate::month(newmoondate),
                 year = lubridate::year(newmoondate)) %>%
-  dplyr::filter(year > 1983) %>%
+  dplyr::filter(!newmoonnumber<85) %>%
   # Scale continuous variables for massively improved efficiency of
   # Stan sampling
   dplyr::mutate(ndvi = as.vector(scale(ndvi)),
@@ -95,7 +95,7 @@ model_dat %>%
   dplyr::mutate(series = as.factor(series)) %>%
   dplyr::arrange(time, series) -> model_dat
 
-#UNSURE WHY THIS IS FALSE FOR NOW
+#max newmoonnumber included: June 2023 when using portalr to download data
 (max(model_dat$time) * length(unique(model_dat$series))) == NROW(model_dat)
 
 # Feature engineering
@@ -283,7 +283,7 @@ save(model_dat,
 load('rodents_data_tsobjects.rda')
 
 # Source the bespoke checking / graphical functions
-source('D:/Dropbox (UFL)/PhD-stuff/mvgamportal/R/checking_functions.R')
+source('G:/My Drive/SLU/project/mvgamportal/R/checking_functions.R')
 
 # View some of the raw time series
 plot_mvgam_series(data = data_train, series = 'all')
@@ -349,22 +349,21 @@ modvar <- mvgam(formula = y ~ 1,
                 priors = priors,
                 samples = 1600)
 
+#saveRDS(modvar, "multi_sp_sample3_output.RDS")
+
 par(mfrow=c(3,1))
 
-plot(modvar, forecast, series=1)
-plot(modvar, forecast, series=2)
-plot(modvar, forecast, series=3)
-plot(modvar, forecast, series=4)
-plot(modvar, forecast, series=5)
-plot(modvar, forecast, series=6)
-plot(modvar, forecast, series=7)
-plot(modvar, forecast, series=8)
-plot(modvar, forecast, series=9)
+plot(modvar, "forecast", series=1)
+plot(modvar, "forecast", series=2)
+plot(modvar, "forecast", series=3)
+plot(modvar, "forecast", series=4)
+plot(modvar, "forecast", series=5)
+plot(modvar, "forecast", series=6)
+plot(modvar, "forecast", series=7)
+plot(modvar, "forecast", series=8)
+plot(modvar, "forecast", series=9)
 
-#### Fit full models to the entire series of data ####
-modvar_all <- update(modvar, data = data_all, samples = 1600)
-save(modvar_all, file = 'modvar_all.rda')
-
+#TO VIZ
 modvar_scores <- exp(log(score(forecast(modvar), score = 'variogram',
                                log = TRUE)$all_series$score[1:12] *
                            score(forecast(modvar), score = 'energy',
