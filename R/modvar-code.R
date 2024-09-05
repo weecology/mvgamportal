@@ -16,7 +16,7 @@ rodent_data=summarize_rodent_data(
   plots = "Longterm",
   unknowns = FALSE,
   shape = "crosstab",
-  time = "newmoon",
+  time = "all",
   output = "abundance",
   na_drop = FALSE,
   zero_drop = FALSE,
@@ -25,7 +25,10 @@ rodent_data=summarize_rodent_data(
   effort = TRUE,
   download_if_missing = TRUE,
   quiet = FALSE
-)%>%replace_na(list(treatment='control')) #to include non-census dates
+)%>%#to include non-census dates
+  filter(treatment%in%c("control", NA))%>%
+  select(newmoonnumber,treatment, DM, PP, OT, PE, PB, RM, DO)%>%
+  replace_na(list(treatment='control'))
 
 moon_dates=read.csv("https://raw.githubusercontent.com/weecology/PortalData/main/Rodents/moon_dates.csv")
 
@@ -73,20 +76,20 @@ rodents_table %>%
   # dplyr::arrange(year, month) %>%
   # dplyr::group_by(month, year) %>%
   # dplyr::slice_head(n = 1) %>%
-  tidyr::pivot_longer(cols = colnames(rodents_table)[5:25],
+  tidyr::pivot_longer(cols = colnames(rodents_table)[3:9],
                       names_to = 'series', values_to = 'y') %>%
   dplyr::select(y, series, month, year,
                 newmoonnumber, mintemp:ndvi_ma12) %>%
   dplyr::mutate(time = newmoonnumber - (min(newmoonnumber) - 1))-> model_dat
 
 # Many models will fail if the series of observations is nearly all zeroes.
-# Remove species with < 33 (out of 330) total unique observations (i.e. captures in at least
+# Remove species with < 50 (out of 498) total unique observations (i.e. captures in at least
 # 10% of unique trapping sessions)
 # as forecasting these is not really useful anyway
 model_dat %>%
   dplyr::group_by(series) %>%
   dplyr::summarise(total_obs = length(which(y >= 1))) %>%
-  dplyr::filter(total_obs >= 33) %>%
+  dplyr::filter(total_obs >= 50) %>% #approx. 500 datapoints
   dplyr::pull(series) -> series_keep
 
 model_dat %>%
@@ -166,7 +169,7 @@ model_dat %>%
                                    maxtemp_ma3 = zoo::rollmean(maxtemp, k = 3, align = 'right',
                                                                na.pad = TRUE))) -> model_dat
 
-# As we now have NAs for the first 11 rows of observations for each lag matrix,
+# As we now have NAs for the first 15 rows of observations for each lag matrix,
 # as well as NAs for some rows of the moving average covariates,
 # filter the data so that no NAs remain for covariates
 model_dat %>%
@@ -362,9 +365,16 @@ plot(modvar, "forecast", series=6)
 plot(modvar, "forecast", series=7)
 plot(modvar, "forecast", series=8)
 plot(modvar, "forecast", series=9)
+plot(modvar, "forecast", series=10)
+plot(modvar, "forecast", series=11)
+plot(modvar, "forecast", series=12)
+plot(modvar, "forecast", series=13)
+plot(modvar, "forecast", series=14)
 
 #TO VIZ
 modvar_scores <- exp(log(score(forecast(modvar), score = 'variogram',
                                log = TRUE)$all_series$score[1:12] *
                            score(forecast(modvar), score = 'energy',
                                  log = TRUE)$all_series$score[1:12]))
+
+plot(modvar_scores, type="l")
