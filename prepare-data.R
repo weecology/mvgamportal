@@ -11,12 +11,12 @@ lagard <- function(df, n_lag = 6) {
   covar <- names(df)[2]
   n <- nrow(df)
   time_series <- covars[[2]] # Get just values
-  lags <- matrix(NA, n, n_lag)
-  for (i in 1:n_lag) {
+  lags <- matrix(NA, n, n_lag + 1)
+  for (i in 1:(n_lag + 1)) {
     lags[i:n, i] <- time_series[i:n - i + 1]
   }
   lags_df <- data.frame(lags)
-  colnames(lags_df) <- paste0(covar, "_lag_", 0:(n_lag - 1))
+  colnames(lags_df) <- paste0(covar, "_lag_", 0:(n_lag))
   bind_cols(df["newmoonnumber"], lags_df)
 }
 
@@ -118,14 +118,14 @@ covars_w_lags <- covars |>
 
 model_dat <- rodent_data |>
   right_join(covars_w_lags, by = "newmoonnumber") |>
+  drop_na(meantemp:maxtemp_lag_5) |>
   # add mvgam columns
   mutate(
     y = abundance,
     series = species,
     time = newmoonnumber - (min(newmoonnumber) - 1)
   ) |>
-  select(time, y, series, newmoonnumber, meantemp:maxtemp_lag_5) |>
-  drop_na(meantemp:maxtemp_lag_5) |>
+  select(time, y, series, newmoonnumber, meantemp:maxtemp_lag_6) |>
   arrange(time, series)
 
 # Compared to Clarke et al. 2025 we don't need to filter species
@@ -155,9 +155,9 @@ data_all <- list(
   lag = lag,
   meantemp = model_dat$meantemp,
   meantemp_lag_1 = model_dat$meantemp_lag_1,
-  mintemp = as.matrix(select(model_dat, mintemp_lag_1:mintemp_lag_5)),
+  mintemp = as.matrix(select(model_dat, mintemp_lag_1:mintemp_lag_6)),
   mintemp_ma3 = model_dat$mintemp_ma3,
-  maxtemp = as.matrix(select(model_dat, maxtemp_lag_1:maxtemp_lag_5)),
+  maxtemp = as.matrix(select(model_dat, maxtemp_lag_1:maxtemp_lag_6)),
   maxtemp_ma3 = model_dat$maxtemp_ma3,
   warm_precip = model_dat$warm_precip,
   cool_precip = model_dat$cool_precip,
