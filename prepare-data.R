@@ -41,7 +41,7 @@ rodent_data <- summarize_rodent_data(
   quiet = FALSE
 )
 
-target_species <- c("DM", "PP", "OT", "PE", "PB", "RM", "DO")
+target_species <- c("DM", "PP", "OT", "PE", "PB", "RM", "DO", "OL", "PF")
 
 # In comparison to Clarke et al. 2025
 # we've added the correction for under sampling of controls
