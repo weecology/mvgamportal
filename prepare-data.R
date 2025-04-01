@@ -173,7 +173,8 @@ data_all <- list(
   weights_rm = weights_rm,
   y = model_dat$y,
   series = model_dat$series,
-  time = model_dat$time
+  time = model_dat$time,
+  newmoonnumber = model_dat$newmoonnumber
 )
 
 saveRDS(data_all, file = "data_all.rds")
