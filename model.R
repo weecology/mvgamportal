@@ -7,28 +7,38 @@ library(portalr)
 
 data_all <- readRDS("data_all.rds")
 
-# Test/train split to mirror Clarke et al.
-# Time 135 is equivalent to newmoon 230, which is the start of 1996
-# Times 419-431 are equivalent to newmoons 514-526 which is 2019
-train_inds <- which(data_all$time >= 135 & data_all$time < 419)
-data_train <- lapply(seq_along(data_all), function(x) {
-  if (is.matrix(data_all[[x]])) {
-    data_all[[x]][train_inds, ]
-  } else {
-    data_all[[x]][train_inds]
-  }
-})
+split_train_test <- function(data_all, train_start, train_end, test_length = 12) {
+  test_start <- train_end + 1
+  test_end <- train_end + test_length
 
-test_inds <- which(data_all$time >= 419 & data_all$time <= 431)
-data_test <- lapply(seq_along(data_all), function(x) {
-  if (is.matrix(data_all[[x]])) {
-    data_all[[x]][test_inds, ]
-  } else {
-    data_all[[x]][test_inds]
-  }
-})
+  train_inds <- which(data_all$newmoonnumber >= train_start &
+                      data_all$newmoonnumber <= train_end)
+  data_train <- lapply(seq_along(data_all), function(x) {
+    if (is.matrix(data_all[[x]])) {
+      data_all[[x]][train_inds, ]
+    } else {
+      data_all[[x]][train_inds]
+    }
+  })
 
-names(data_train) <- names(data_test) <- names(data_all)
+  test_inds <- which(data_all$newmoonnumber >= test_start &
+                     data_all$newmoonnumber <= test_end)
+  data_test <- lapply(seq_along(data_all), function(x) {
+    if (is.matrix(data_all[[x]])) {
+      data_all[[x]][test_inds, ]
+    } else {
+      data_all[[x]][test_inds]
+    }
+  })
+
+  names(data_train) <- names(data_test) <- names(data_all)
+
+  return(list(train = data_train, test = data_test))
+}
+
+data_split <- split_train_test(data_all, train_start = 230, train_end = 513)
+data_train <- data_split$train
+data_test <- data_split$test
 
 priors <- get_mvgam_priors(
   formula = y ~ 1,
