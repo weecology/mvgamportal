@@ -79,10 +79,7 @@ modvar <- mvgam(
 
 saveRDS(modvar, "modvar_output.rds")
 
-modvar <- loadRDS("modvar_output.rds")
-
-# Open a PDF device
-png("forecast_plots.png", width = 1000, height = 800, dpi = 300)
+modvar <- readRDS("modvar_output.rds")
 
 par(mfrow = c(3, 3))
 
@@ -95,6 +92,3 @@ plot(modvar, "forecast", series = 6)
 plot(modvar, "forecast", series = 7)
 plot(modvar, "forecast", series = 8)
 plot(modvar, "forecast", series = 9)
-
-# Close the PNG device
-dev.off()
