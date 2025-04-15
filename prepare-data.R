@@ -41,7 +41,8 @@ rodent_data <- summarize_rodent_data(
   quiet = FALSE
 )
 
-target_species <- c("DM", "PP", "OT", "PE", "PB", "RM", "DO", "OL", "PF")
+# TODO: Check if PF, PE, and RM are frequent enough to be included
+target_species <- c("DM", "PP", "PB", "DO", "PF", "PE", "RM")
 
 # In comparison to Clarke et al. 2025
 # we've added the correction for under sampling of controls
