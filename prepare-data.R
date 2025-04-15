@@ -26,7 +26,7 @@ rodent_data <- summarize_rodent_data(
   path = get_default_data_path(),
   clean = FALSE,
   level = "Treatment",
-  type = "Rodents",
+  type = "Granivores",
   plots = "Longterm",
   unknowns = FALSE,
   shape = "long",
@@ -41,14 +41,21 @@ rodent_data <- summarize_rodent_data(
   quiet = FALSE
 )
 
-# TODO: Check if PF, PE, and RM are frequent enough to be included
-target_species <- c("DM", "PP", "PB", "DO", "PF", "PE", "RM")
+# Keep species present in >=30% of sampling periods
+target_species <- rodent_data |>
+  select(-c(censusdate,period,nplots,ntraps)) |> 
+  group_by(newmoonnumber, species) |> 
+  summarise(abundance = sum(abundance, na.rm=TRUE)) |> 
+  group_by(species) |> 
+  summarise(occupancy = sum(abundance>0)/max(newmoonnumber)) |> 
+  filter(occupancy>=0.30) |>
+  select(species)
 
 # In comparison to Clarke et al. 2025
 # we've added the correction for under sampling of controls
 rodent_data <- rodent_data |>
   filter(treatment == "control") |>
-  filter(species %in% target_species) |>
+  filter(species %in% target_species$species) |>
   mutate(species = factor(species, levels = unique(species))) |>
   mutate(abundance = as.integer(round(abundance * 4 / nplots, 0))) |>
   select(-ntraps, -nplots)
