@@ -41,7 +41,8 @@ rodent_data <- summarize_rodent_data(
   quiet = FALSE
 )
 
-target_species <- c("DM", "PP", "OT", "PE", "PB", "RM", "DO", "OL", "PF")
+# TODO: Check if PF, PE, and RM are frequent enough to be included
+target_species <- c("DM", "PP", "PB", "DO", "PF", "PE", "RM")
 
 # In comparison to Clarke et al. 2025
 # we've added the correction for under sampling of controls
@@ -173,7 +174,8 @@ data_all <- list(
   weights_rm = weights_rm,
   y = model_dat$y,
   series = model_dat$series,
-  time = model_dat$time
+  time = model_dat$time,
+  newmoonnumber = model_dat$newmoonnumber
 )
 
 saveRDS(data_all, file = "data_all.rds")
