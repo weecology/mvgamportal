@@ -62,7 +62,6 @@ model_gam_var <- mvgam(
     te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
     te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
     te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr")) +
-    te(mintemp, lag, by = weights_ot, k = c(3, 4), bs = c("tp", "cr")) +
     te(mintemp, lag, by = weights_pp, k = c(3, 4), bs = c("tp", "cr")),
   data = data_train,
   newdata = data_test,
@@ -78,7 +77,6 @@ model_gam_ar <- mvgam(
     te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
     te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
     te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr")) +
-    te(mintemp, lag, by = weights_ot, k = c(3, 4), bs = c("tp", "cr")) +
     te(mintemp, lag, by = weights_pp, k = c(3, 4), bs = c("tp", "cr")),
   data = data_train,
   newdata = data_test,
