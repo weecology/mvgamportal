@@ -3,7 +3,6 @@ library(cmdstanr)
 library(forecast)
 library(mvgam)
 library(portalr)
-library(portalr)
 
 data_all <- readRDS("data_all.rds")
 
