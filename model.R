@@ -95,7 +95,7 @@ model_ar <- mvgam(
   data = data_train,
   newdata = data_test,
   family = poisson(),
-  trend_model = "AR1",
+  trend_model = AR(),
   priors = priors,
   samples = 1600
 )
