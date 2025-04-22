@@ -57,7 +57,7 @@ priors <- c(
 
 # Fit the model
 model_gam_var <- mvgam(
-  formula = y ~ 1,
+  formula = y ~ -1,
   trend_formula = ~ s(ndvi_ma12, trend, bs = "re") +
     te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
     te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
@@ -73,7 +73,7 @@ model_gam_var <- mvgam(
 )
 
 model_gam_ar <- mvgam(
-  formula = y ~ 1,
+  formula = y ~ -1,
   trend_formula = ~ s(ndvi_ma12, trend, bs = "re") +
     te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
     te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
@@ -93,7 +93,7 @@ model_gam_ar <- mvgam(
 priors <- c(priors, prior(std_normal(), class = b))
 
 model_ar <- mvgam(
-  formula = y ~ 1,
+  formula = y ~ -1,
   data = data_train,
   newdata = data_test,
   family = poisson(),
@@ -102,10 +102,13 @@ model_ar <- mvgam(
   samples = 1600
 )
 
-saveRDS(model_gam_var, "gam_var_one_year_into_transition_output.rds")
-saveRDS(model_gam_ar, "gam_ar_one_year_into_transition_output.rds")
+saveRDS(model_gam_var, "gam_var_one_year_into_transition_output_y_minus_1.rds")
+saveRDS(model_gam_ar, "gam_ar_one_year_into_transition_output_y_minus_1.rds")
+saveRDS(model_ar, "ar_one_year_into_transition_output_y_minus_1.rds")
 
-model_gam_var <- readRDS("gam_var_one_year_into_transition_output.rds")
+model_gam_var <- readRDS("gam_var_one_year_into_transition_output_y_minus_1.rds")
+model_gam_ar <- readRDS("gam_ar_one_year_into_transition_output_y_minus_1.rds")
+model_ar <- readRDS("ar_one_year_into_transition_output_y_minus_1.rds")
 
 par(mfrow = c(3, 3))
 
@@ -119,7 +122,7 @@ plot(model_gam_var, "forecast", series = 7)
 plot(model_gam_var, "forecast", series = 8)
 plot(model_gam_var, "forecast", series = 9)
 
-dev.print(pdf, "gam_var_one_year_into_transition.pdf")
+dev.print(pdf, "gam_var_one_year_into_transition_y_minus_1.pdf")
 
 par(mfrow = c(3, 3))
 
@@ -145,4 +148,4 @@ plot(model_ar, "forecast", series = 7)
 plot(model_ar, "forecast", series = 8)
 plot(model_ar, "forecast", series = 9)
 
-dev.print(pdf, "ar_one_year_into_transition.pdf")
+dev.print(pdf, "ar_one_year_into_transition_y_minus_1.pdf")
