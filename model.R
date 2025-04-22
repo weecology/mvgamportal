@@ -89,6 +89,10 @@ model_gam_ar <- mvgam(
   samples = 1600
 )
 
+# Prior adjustment from AR model in Clark et al. 2025
+# https://github.com/nicholasjclark/portal_VAR/blob/main/2.%20models.R
+priors <- c(priors, prior(std_normal(), class = b))
+
 model_ar <- mvgam(
   formula = y ~ 1,
   data = data_train,
