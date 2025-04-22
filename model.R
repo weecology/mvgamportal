@@ -37,26 +37,13 @@ data_split <- split_train_test(data_all, train_start = 279, train_end = 394, tes
 data_train <- data_split$train
 data_test <- data_split$test
 
-# GAM VAR
+# Base priors
 
-gam_var_priors <- get_mvgam_priors(
-  formula = y ~ 1,
-  trend_formula = ~ s(ndvi_ma12, trend, bs = "re") +
-    te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
-    te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
-    te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr")) +
-    te(mintemp, lag, by = weights_ot, k = c(3, 4), bs = c("tp", "cr")) +
-    te(mintemp, lag, by = weights_pp, k = c(3, 4), bs = c("tp", "cr")),
-  data = data_train,
-  family = poisson(),
-  trend_model = "VAR1cor"
-)
-
-gam_var_priors <- prior(beta(10, 10), class = sigma, lb = 0.2, ub = 1)
+priors <- prior(beta(10, 10), class = sigma, lb = 0.2, ub = 1)
 
 # Update the prior for the NDVI random slopes
-gam_var_priors <- c(
-  gam_var_priors,
+priors <- c(
+  priors,
   prior(inv_gamma(2.3693353, 0.7311319), class = sigma_raw_trend)
 )
 
@@ -64,32 +51,9 @@ gam_var_priors <- c(
 # don't really need (and cannot adequately estimate anyway).
 # At present there is no way to drop this term using mvgam, but we can
 # heavily regularize it to zero with a strong prior
-gam_var_priors <- c(
-  gam_var_priors,
+priors <- c(
+  priors,
   prior(normal(0, 0.001), class = Intercept)
-)
-
-## GAM AR
-
-gam_ar_priors <- get_mvgam_priors(
-  formula = y ~ 1,
-  trend_formula = ~ s(ndvi_ma12, trend, bs = "re") +
-    te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
-    te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
-    te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr")) +
-    te(mintemp, lag, by = weights_ot, k = c(3, 4), bs = c("tp", "cr")) +
-    te(mintemp, lag, by = weights_pp, k = c(3, 4), bs = c("tp", "cr")),
-  data = data_train,
-  family = poisson(),
-  trend_model = "AR1"
-)
-
-gam_ar_priors <- prior(beta(10, 10), class = sigma, lb = 0.2, ub = 1)
-
-# Update the prior for the NDVI random slopes
-gam_ar_priors <- c(
-  gam_ar_priors,
-  prior(inv_gamma(2.3693353, 0.7311319), class = sigma_raw_trend)
 )
 
 # Fit the model
@@ -105,7 +69,7 @@ model_gam_var <- mvgam(
   newdata = data_test,
   family = poisson(),
   trend_model = "VAR1cor",
-  priors = gam_var_priors,
+  priors = priors,
   samples = 1600
 )
 
@@ -120,7 +84,7 @@ model_gam_ar <- mvgam(
   data = data_train,
   newdata = data_test,
   family = poisson(),
-  trend_model = "AR1",
+  trend_model = AR(),
   priors = priors,
   samples = 1600
 )
