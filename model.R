@@ -91,7 +91,7 @@ model_gam_ar <- mvgam(
 priors <- c(priors, prior(std_normal(), class = b))
 
 model_ar <- mvgam(
-  formula = y ~ -1,
+  formula = y ~ series,
   data = data_train,
   newdata = data_test,
   family = poisson(),
@@ -143,4 +143,4 @@ plot(model_ar, "forecast", series = 5)
 plot(model_ar, "forecast", series = 6)
 plot(model_ar, "forecast", series = 7)
 
-dev.print(pdf, "ar_one_year_into_transition_y_minus_1.pdf")
+dev.print(pdf, "ar_one_year_into_transition_y_just_series.pdf")
