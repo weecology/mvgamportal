@@ -4,7 +4,7 @@ library(forecast)
 library(mvgam)
 library(portalr)
 
-data_all <- readRDS("data_all.rds")
+data_all <- readRDS("data_pb_regime.rds")
 
 split_train_test <- function(data_all, train_start, train_end, test_start, test_end) {
   train_inds <- which(data_all$newmoonnumber >= train_start &
