@@ -117,8 +117,7 @@ plot(model_gam_var, "forecast", series = 4)
 plot(model_gam_var, "forecast", series = 5)
 plot(model_gam_var, "forecast", series = 6)
 plot(model_gam_var, "forecast", series = 7)
-plot(model_gam_var, "forecast", series = 8)
-plot(model_gam_var, "forecast", series = 9)
+
 
 dev.print(pdf, "gam_var_one_year_into_transition_y_minus_1.pdf")
 
@@ -131,10 +130,10 @@ plot(model_gam_ar, "forecast", series = 4)
 plot(model_gam_ar, "forecast", series = 5)
 plot(model_gam_ar, "forecast", series = 6)
 plot(model_gam_ar, "forecast", series = 7)
-plot(model_gam_ar, "forecast", series = 8)
-plot(model_gam_ar, "forecast", series = 9)
 
 dev.print(pdf, "gam_ar_one_year_into_transition.pdf")
+
+par(mfrow = c(3, 3))
 
 plot(model_ar, "forecast", series = 1)
 plot(model_ar, "forecast", series = 2)
@@ -143,7 +142,5 @@ plot(model_ar, "forecast", series = 4)
 plot(model_ar, "forecast", series = 5)
 plot(model_ar, "forecast", series = 6)
 plot(model_ar, "forecast", series = 7)
-plot(model_ar, "forecast", series = 8)
-plot(model_ar, "forecast", series = 9)
 
 dev.print(pdf, "ar_one_year_into_transition_y_minus_1.pdf")
