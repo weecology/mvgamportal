@@ -3,6 +3,7 @@ library(cmdstanr)
 library(forecast)
 library(mvgam)
 library(portalr)
+source("R/get_regime.R")
 
 data_all <- readRDS("data_pb_regime.rds")
 
@@ -32,7 +33,18 @@ split_train_test <- function(data_all, train_start, train_end, test_start, test_
   return(list(train = data_train, test = data_test))
 }
 
-data_split <- split_train_test(data_all, train_start = 279, train_end = 394, test_start = 395, test_end = 395 + 12)
+regime_splits <- get_regime(regime = 4, test = "in")
+train_start <- regime_splits$train_start
+test_start <- regime_splits$test_start
+train_stop <- regime_splits$train_stop
+test_stop <- regime_splits$test_stop
+data_split <- split_train_test(
+  data_all,
+  train_start = train_start,
+  train_end = train_stop,
+  test_start = test_start,
+  test_end = test_stop
+)
 data_train <- data_split$train
 data_test <- data_split$test
 
