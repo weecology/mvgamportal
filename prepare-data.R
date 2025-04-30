@@ -43,12 +43,12 @@ rodent_data <- summarize_rodent_data(
 
 # Keep species present in >=30% of sampling periods
 target_species <- rodent_data |>
-  select(-c(censusdate,period,nplots,ntraps)) |> 
-  group_by(newmoonnumber, species) |> 
-  summarise(abundance = sum(abundance, na.rm=TRUE)) |> 
-  group_by(species) |> 
-  summarise(occupancy = sum(abundance>0)/max(newmoonnumber)) |> 
-  filter(occupancy>=0.30) |>
+  select(-c(censusdate, period, nplots, ntraps)) |>
+  group_by(newmoonnumber, species) |>
+  summarise(abundance = sum(abundance, na.rm = TRUE)) |>
+  group_by(species) |>
+  summarise(occupancy = sum(abundance > 0) / max(newmoonnumber)) |>
+  filter(occupancy >= 0.30) |>
   select(species)
 
 # In comparison to Clarke et al. 2025
@@ -144,15 +144,14 @@ lag <- matrix(0:5, nrow(model_dat), 6, byrow = TRUE)
 # Create weight matrices for hierarchical distributed lag terms
 # Directly from Clarke et al. 2025's code
 weights_dm <- weights_do <-
-  weights_pp <- weights_ol <-
-  weights_ot <- weights_pf <-
-  weights_pb <- weights_pe <- weights_rm <-
+  weights_ds <- weights_pp <-
+  weights_pf <- weights_pb <-
+  weights_pe <- weights_rm <-
   matrix(1, ncol = ncol(lag), nrow = nrow(lag))
 
 weights_dm[!(model_dat$series == "DM"), ] <- 0
 weights_do[!(model_dat$series == "DO"), ] <- 0
-weights_ol[!(model_dat$series == "OL"), ] <- 0
-weights_ot[!(model_dat$series == "OT"), ] <- 0
+weights_ds[!(model_dat$series == "DS"), ] <- 0
 weights_pb[!(model_dat$series == "PB"), ] <- 0
 weights_pe[!(model_dat$series == "PE"), ] <- 0
 weights_pf[!(model_dat$series == "PF"), ] <- 0
@@ -172,8 +171,7 @@ data_all <- list(
   ndvi_ma12 = model_dat$ndvi_ma12,
   weights_dm = weights_dm,
   weights_do = weights_do,
-  weights_ol = weights_ol,
-  weights_ot = weights_ot,
+  weights_ds = weights_ds,
   weights_pb = weights_pb,
   weights_pe = weights_pe,
   weights_pf = weights_pf,
@@ -186,3 +184,32 @@ data_all <- list(
 )
 
 saveRDS(data_all, file = "data_all.rds")
+
+model_dat_pb_regime <- model_dat |>
+  filter(series != "DS")
+
+data_pb_regime <- list(
+  lag = lag,
+  meantemp = model_dat_pb_regime$meantemp,
+  meantemp_lag_1 = model_dat_pb_regime$meantemp_lag_1,
+  mintemp = as.matrix(select(model_dat_pb_regime, mintemp_lag_1:mintemp_lag_6)),
+  mintemp_ma3 = model_dat_pb_regime$mintemp_ma3,
+  maxtemp = as.matrix(select(model_dat_pb_regime, maxtemp_lag_1:maxtemp_lag_6)),
+  maxtemp_ma3 = model_dat_pb_regime$maxtemp_ma3,
+  warm_precip = model_dat_pb_regime$warm_precip,
+  cool_precip = model_dat_pb_regime$cool_precip,
+  ndvi_ma12 = model_dat_pb_regime$ndvi_ma12,
+  weights_dm = weights_dm,
+  weights_do = weights_do,
+  weights_pb = weights_pb,
+  weights_pe = weights_pe,
+  weights_pf = weights_pf,
+  weights_pp = weights_pp,
+  weights_rm = weights_rm,
+  y = model_dat_pb_regime$y,
+  series = model_dat_pb_regime$series,
+  time = model_dat_pb_regime$time,
+  newmoonnumber = model_dat_pb_regime$newmoonnumber
+)
+
+saveRDS(data_all, file = "data_pb_regime.rds")
