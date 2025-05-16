@@ -55,7 +55,7 @@ dmdat=dmcont_covs%>%
   filter(!time<32)
 
 # Define the model-fitting function
-fit_mod <- function(train_data, test_data) {
+fit_mod_AR <- function(train_data, test_data) {
   mvgam::mvgam(
     abundance ~ 1,  # model abundance with intercept only
     trend_formula = ~ -1,  # remove default smooth trend
@@ -65,50 +65,67 @@ fit_mod <- function(train_data, test_data) {
     newdata = test_data,
     priors = prior(normal(0, 2), class = "Intercept"),
     chains = 4,
-    samples = 200
+    samples = 2000
   )
 }
 
-# Define parameters
+fit_mod_ARlin=function(train_data, test_data) {
+  mvgam::mvgam(formula= abundance~1,
+               trend_model='VAR1cor',
+               family= poisson(link = "log"),
+               data=train_data,
+               newdata= test_data,
+               trend_formula=  ~ s(warm_precip, trend, bs="re")+
+                 s(cool_precip, trend, bs="re")+
+                 s(meantemp_lag1, trend, bs="re"), # process model formula, which includes the smooth functions,
+               #trend is a latent process
+               chains = 4,
+               samples = 200)
+}
+step_size <- 5
+sampling_mos <- 12  # 1 year
+training_increment <- sampling_mos * step_size  # How much to grow training set each time
 
-sampling_mos=12
-step_size=5 #make datasets increase by 5 years at a time
-training_increment <- sampling_mos * step_size          # training increment in time steps (e.g., months)
-forecast_horizon <- 12     # number of steps ahead to forecast (3 for short, 12 for long)
+forecast_horizon <- 12
+test_start_index <- 484 #will need to make this dynamic if we were to slide
+test_end_index <- 495
 
 # Prepare result list
-
 mod1_results <- list()
 
-# Loop through incremental training windows
+# Loop through different training window sizes, ending at the point before test
 split_id <- 1
-for (train_end in seq(from = training_increment,
-                      to = nrow(dmdat) - forecast_horizon,
-                      by = training_increment)) {
+for (train_length in seq(from = training_increment,
+                         to = test_start_index - 1,
+                         by = training_increment)) {
 
-  # Define training and test datasets
-  train_data <- dmdat[1:train_end, ]
-  test_data <- dmdat[(train_end + 1):(train_end + forecast_horizon), ]
+  # Define start and end of training data to make sure it immediately precedes test data
+  train_start_index <- test_start_index - train_length
+  train_end_index <- test_start_index - 1
 
+  # Ensure valid range
+  if (train_start_index >= 1) {
 
-  # Ensure test data exists and is complete
-  if (nrow(test_data) == forecast_horizon) {
+    # Subset training and test data
+    train_data <- dmdat[train_start_index:train_end_index, ]
+    test_data <- dmdat[test_start_index:test_end_index, ]
 
-    # Fit the model
-    model <- fit_mod(train_data, test_data)
+    # Fit model
+    model <- fit_mod_AR(train_data, test_data)
 
-    # forecasts
-    preds<- forecast(model, newdata = test_data, type = 'response')
+    # Forecast
+    preds <- forecast(model, newdata = test_data, type = 'response')
 
-    # scores
+    # Score
     forecast_scores <- mvgam::score(preds, score = 'crps')
 
     # Store results
     mod1_results[[split_id]] <- list(
       split_id = split_id,
-      train_end = train_end,
-      test_start = train_end + 1,
-      test_end = train_end + forecast_horizon,
+      train_start = train_start_index,
+      train_end = train_end_index,
+      test_start = test_start_index,
+      test_end = test_end_index,
       model = model,
       preds = preds,
       scores = forecast_scores
@@ -119,29 +136,39 @@ for (train_end in seq(from = training_increment,
 }
 
 # Compile CRPS scores into a dataframe
+
 crps_df <- map_dfr(mod1_results, ~{
+  n_scores <- length(.x$scores$DM$score)  # number of forecast horizons scored
+  train_len <- .x$train_end - .x$train_start + 1
+  test_range <- .x$test_start:.x$test_end
+
   tibble(
     split_id = .x$split_id,
-    time = .x$test_start:.x$test_end,
-    date = dmdat$censusdate[.x$test_start:.x$test_end],
-    horizon = 1:12,  # step-ahead horizon from 1 to 12
+    train_len = train_len,
+    time = test_range[1:n_scores],
+    date = dmdat$censusdate[test_range][1:n_scores],
+    horizon = seq_len(n_scores),
     crps = .x$scores$DM$score
   )
 })
 
-ggplot(crps_df, aes(x = as.factor(horizon), y = crps, col=split_id)) +
-  geom_violin(color = "black", alpha = 1) +
-  geom_jitter(width = 0.2, alpha = 1, size = 2, aes(color = split_id)) +
- # scale_color_viridis_d() +
-  labs(title = "CRPS Distribution by Forecast Horizon",
-       x = "Forecast Horizon (months)",
-       y = "CRPS") +
+#plot
+p1=ggplot(crps_df, aes(x = as.factor(horizon), y = crps, color =train_len)) +
+  geom_violin(alpha = 1, color="black") +
+  geom_jitter(width = 0.2, alpha = 1, size = 2, aes(color = train_len)) +
+  scale_colour_viridis_c()+
+  labs(
+    title = "CRPS Distribution by Forecast Horizon",
+    x = "Forecast Horizon",
+    y = "CRPS",
+    color = "TS length"
+  ) +
   theme_classic()
 
-ggplot(crps_df, aes(x = date, y = crps)) +
-  geom_line(color = "steelblue") +
-  geom_point(color = "steelblue") +
-  labs(title = "CRPS Over Time",
-       x = "Time (newmoonnumber)",
-       y = "CRPS") +
-  theme_classic()
+p2=ggplot(crps_df, aes(x=train_len, y=crps, col=horizon))+
+  geom_point(width = 0.2, alpha = 1, size = 2, aes(color = as.factor(horizon)))+
+  geom_line(aes(color = as.factor(horizon)))+
+  theme_classic()+scale_color_viridis_d()+
+  xlab("training data length")+ggtitle("DM (AR1 model)")
+
+ggarrange(p1,p2)
