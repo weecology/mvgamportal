@@ -51,6 +51,8 @@ get_regime <- function(regime = 4, test = "out") {
                   transition 4: newmoon 396:411: Jun 2009 - Sep 2010")
   }
 
+  gap <- transition_stop - regime_stop + 1
+
   if (test == "out") {
     train_start <- regime_stop - 60
     train_stop <- regime_stop - 1
@@ -59,7 +61,6 @@ get_regime <- function(regime = 4, test = "out") {
   }
 
   if (test == "in") {
-    gap <- transition_stop - regime_stop + 1
     train_start <- regime_stop - 13 - gap - 60
     train_stop <- regime_stop - 13 - gap - 1
     test_start <- regime_stop - 13
@@ -70,6 +71,7 @@ get_regime <- function(regime = 4, test = "out") {
     train_start = train_start,
     train_stop = train_stop,
     test_start = test_start,
-    test_stop = test_stop
+    test_stop = test_stop,
+    gap = gap
   ))
 }

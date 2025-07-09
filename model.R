@@ -7,9 +7,9 @@ source("R/get_regime.R")
 
 data_all <- readRDS("data_pb_regime.rds")
 
-split_train_test <- function(data_all, train_start, train_end, test_start, test_end) {
+split_train_test <- function(data_all, gap, train_start, train_end, test_start, test_end) {
   train_inds <- which(data_all$newmoonnumber >= train_start &
-    data_all$newmoonnumber <= train_end)
+    data_all$newmoonnumber <= (train_end + gap + 1))
   data_train <- lapply(seq_along(data_all), function(x) {
     if (is.matrix(data_all[[x]])) {
       data_all[[x]][train_inds, ]
@@ -18,7 +18,12 @@ split_train_test <- function(data_all, train_start, train_end, test_start, test_
     }
   })
 
-  test_inds <- which(data_all$newmoonnumber >= test_start &
+  names(data_train) <- names(data_all)
+  gap_inds <- which(data_train$newmoonnumber >= (train_end + 1) &
+    data_train$newmoonnumber <= (train_end + gap))
+  data_train$y[gap_inds] <- NA
+
+  test_inds <- which(data_all$newmoonnumber >= (test_start + 1) &
     data_all$newmoonnumber <= test_end)
   data_test <- lapply(seq_along(data_all), function(x) {
     if (is.matrix(data_all[[x]])) {
@@ -28,18 +33,20 @@ split_train_test <- function(data_all, train_start, train_end, test_start, test_
     }
   })
 
-  names(data_train) <- names(data_test) <- names(data_all)
+  names(data_test) <- names(data_all)
 
   return(list(train = data_train, test = data_test))
 }
 
 regime_splits <- get_regime(regime = 4, test = "in")
+gap <- regime_splits$gap
 train_start <- regime_splits$train_start
 test_start <- regime_splits$test_start
 train_stop <- regime_splits$train_stop
 test_stop <- regime_splits$test_stop
 data_split <- split_train_test(
   data_all,
+  gap = gap,
   train_start = train_start,
   train_end = train_stop,
   test_start = test_start,
