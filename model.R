@@ -85,7 +85,7 @@ model_gam_var <- mvgam(
   data = data_train,
   newdata = data_test,
   family = poisson(),
-  trend_model = "VAR1cor",
+  trend_model = "VAR1",
   priors = priors,
   samples = 1600
 )
