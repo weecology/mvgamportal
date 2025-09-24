@@ -2,7 +2,7 @@
 
 # Job name and who to send updates to
 #SBATCH --job-name=portal_sliding_window
-#SBATCH --mail-user=ethanwhite@ulf.edu
+#SBATCH --mail-user=ethanwhite@ufl.edu
 #SBATCH --mail-type=FAIL,END
 #SBATCH --account=ewhite
 #SBATCH --qos=ewhite
