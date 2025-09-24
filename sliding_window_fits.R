@@ -60,7 +60,7 @@ gam_var_priors <- c(sigma_prior, intercept_prior, ndvi_random_slopes_prior)
 newmoon_min <- min(data_all$newmoonnumber)
 newmoon_max <- max(data_all$newmoonnumber)
 train_win_width <- 60
-train_starts <- newmoon_min:97 # (newmoon_max - train_win_width - 12 + 1)
+train_starts <- newmoon_min:(newmoon_max - train_win_width - 12 + 1)
 
 ar_scores <- vector(mode = "list", length = length(train_starts))
 gam_ar_scores <- vector(mode = "list", length = length(train_starts))
@@ -125,11 +125,6 @@ for (i in seq_along(train_starts)) {
     priors = gam_var_priors,
     samples = 1600
   )
-  # TODO
-  # 3. Store convergence and other model fit info
-  # 3. Make cool graphs
-  # 4. ?
-  # 5. Profit
 
   ar_score <- score(forecast(ar_model), score = "crps")
   ar_score$test_start_newmoonnumber <- test_start
