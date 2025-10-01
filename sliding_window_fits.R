@@ -62,10 +62,12 @@ newmoon_max <- max(data_all$newmoonnumber)
 train_win_width <- 60
 train_starts <- newmoon_min:(newmoon_max - train_win_width - 12 + 1)
 
+baseline_scores <- vector(mode = "list", length = length(train_starts))
 ar_scores <- vector(mode = "list", length = length(train_starts))
 gam_ar_scores <- vector(mode = "list", length = length(train_starts))
 gam_var_scores <- vector(mode = "list", length = length(train_starts))
 
+baseline_summaries <- vector(mode = "list", length = length(train_starts))
 ar_summaries <- vector(mode = "list", length = length(train_starts))
 gam_ar_summaries <- vector(mode = "list", length = length(train_starts))
 gam_var_summaries <- vector(mode = "list", length = length(train_starts))
@@ -85,6 +87,15 @@ for (i in seq_along(train_starts)) {
   )
   data_train <- data_split$train
   data_test <- data_split$test
+
+  baseline_model <- mvgam(
+    formula = y ~ series,
+    data = data_train,
+    newdata = data_test,
+    family = poisson(),
+    priors = ar_priors,
+    samples = 1600
+  )
 
   ar_model <- mvgam(
     formula = y ~ series,
@@ -126,6 +137,12 @@ for (i in seq_along(train_starts)) {
     samples = 1600
   )
 
+  baseline_score <- score(forecast(baseline_model), score = "crps")
+  baseline_score$test_start_newmoonnumber <- test_start
+  baseline_scores[[i]] <- baseline_score
+  baseline_summary <- summary(baseline_model)
+  baseline_summary$test_start_newmoonnumber <- test_start
+  baseline_summaries[[i]] <- baseline_summary
   ar_score <- score(forecast(ar_model), score = "crps")
   ar_score$test_start_newmoonnumber <- test_start
   ar_scores[[i]] <- ar_score
