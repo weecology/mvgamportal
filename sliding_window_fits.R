@@ -74,6 +74,7 @@ gam_var_summaries <- vector(mode = "list", length = length(train_starts))
 
 for (i in seq_along(train_starts)) {
   train_start <- train_starts[i]
+  print(glue("Starting training: {i}"))
   train_end <- train_start + 60 - 1
   test_start <- train_end + 1
   test_end <- test_start + 12 - 1
