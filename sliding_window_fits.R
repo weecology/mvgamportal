@@ -132,7 +132,7 @@ for (i in seq_along(train_starts)) {
     data = data_train,
     newdata = data_test,
     family = poisson(),
-    trend_model = "VAR1",
+    trend_model = VAR(),
     priors = gam_var_priors,
     samples = 1600
   )
