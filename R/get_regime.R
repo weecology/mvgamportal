@@ -61,9 +61,9 @@ get_regime <- function(regime = 4, test = "out") {
   }
 
   if (test == "in") {
-    train_start <- regime_stop - 13 - gap - 60
-    train_stop <- regime_stop - 13 - gap - 1
-    test_start <- regime_stop - 13
+    train_start <- regime_stop - 7 - gap - 60
+    train_stop <- regime_stop - 7 - gap - 1
+    test_start <- regime_stop - 7
     test_stop <- regime_stop - 1
   }
 
