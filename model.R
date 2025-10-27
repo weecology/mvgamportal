@@ -38,90 +38,123 @@ split_train_test <- function(data_all, gap, train_start, train_end, test_start, 
   return(list(train = data_train, test = data_test))
 }
 
-regime_splits <- get_regime(regime = 4, test = "in")
-gap <- regime_splits$gap
-train_start <- regime_splits$train_start
-test_start <- regime_splits$test_start
-train_stop <- regime_splits$train_stop
-test_stop <- regime_splits$test_stop
-data_split <- split_train_test(
-  data_all,
-  gap = gap,
-  train_start = train_start,
-  train_end = train_stop,
-  test_start = test_start,
-  test_end = test_stop
-)
-data_train <- data_split$train
-data_test <- data_split$test
+train_starts = c(287,299,311) # starts each train set in August - same as the
+                              # out- training set
+train_win_width = 60
+gap = 16
+horizon = 7 # shortened from 13 to allow 3 train sets within regime
 
-# Base priors
+# ar_scores <- vector(mode = "list", length = length(train_starts))
+# gam_ar_scores <- vector(mode = "list", length = length(train_starts))
+# gam_var_scores <- vector(mode = "list", length = length(train_starts))
 
-priors <- prior(beta(10, 10), class = sigma, lb = 0.2, ub = 1)
+ar_summaries <- vector(mode = "list", length = length(train_starts))
+gam_ar_summaries <- vector(mode = "list", length = length(train_starts))
+gam_var_summaries <- vector(mode = "list", length = length(train_starts))
 
-# Update the prior for the NDVI random slopes
-priors <- c(
-  priors,
-  prior(inv_gamma(2.3693353, 0.7311319), class = sigma_raw_trend)
-)
+for (i in seq_along(train_starts)){
+  train_start <- train_starts[i]
+  train_stop <- train_start + 60 - 1
+  test_start <- train_stop + gap + 1
+  test_stop = test_start + horizon - 1
+  data_split <- split_train_test(
+    data_all,
+    gap = gap,
+    train_start = train_start,
+    train_end = train_stop,
+    test_start = test_start,
+    test_end = test_stop
+  )
+  data_train <- data_split$train
+  data_test <- data_split$test
+  
+  # Base priors
+  
+  priors <- prior(beta(10, 10), class = sigma, lb = 0.2, ub = 1)
+  
+  # Update the prior for the NDVI random slopes
+  priors <- c(
+    priors,
+    prior(inv_gamma(2.3693353, 0.7311319), class = sigma_raw_trend)
+  )
+  
+  # The observation-level intercept is a nuisance parameter in this model that we
+  # don't really need (and cannot adequately estimate anyway).
+  # At present there is no way to drop this term using mvgam, but we can
+  # heavily regularize it to zero with a strong prior
+  priors <- c(
+    priors,
+    prior(normal(0, 0.001), class = Intercept)
+  )
+  
+  # Fit the model
+  model_gam_var <- mvgam(
+    formula = y ~ -1,
+    trend_formula = ~ s(ndvi_ma12, trend, bs = "re") +
+      te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
+      te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
+      te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr")) +
+      te(mintemp, lag, by = weights_pp, k = c(3, 4), bs = c("tp", "cr")),
+    data = data_train,
+    newdata = data_test,
+    family = poisson(),
+    trend_model = "VAR1",
+    priors = priors,
+    samples = 1600
+  )
+  
+  model_gam_ar <- mvgam(
+    formula = y ~ -1,
+    trend_formula = ~ s(ndvi_ma12, trend, bs = "re") +
+      te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
+      te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
+      te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr")) +
+      te(mintemp, lag, by = weights_pp, k = c(3, 4), bs = c("tp", "cr")),
+    data = data_train,
+    newdata = data_test,
+    family = poisson(),
+    trend_model = AR(),
+    priors = priors,
+    samples = 1600
+  )
+  
+  # Prior adjustment from AR model in Clark et al. 2025
+  # https://github.com/nicholasjclark/portal_VAR/blob/main/2.%20models.R
+  priors <- c(priors, prior(std_normal(), class = b))
+  
+  model_ar <- mvgam(
+    formula = y ~ series,
+    data = data_train,
+    newdata = data_test,
+    family = poisson(),
+    trend_model = AR(),
+    priors = priors,
+    samples = 1600
+  )
+  
+  # ar_score <- score(forecast(ar_model), score = "crps")
+  # ar_score$test_start_newmoonnumber <- test_start
+  # ar_scores[[i]] <- ar_score
+  ar_summary <- summary(model_ar)
+  ar_summary$test_start_newmoonnumber <- test_start
+  ar_summaries[[i]] <- ar_summary
+  # gam_ar_score <- score(forecast(model_gam_ar), score = "crps")
+  # gam_ar_score$test_start_newmoonnumber <- test_start
+  # gam_ar_scores[[i]] <- gam_ar_score
+  gam_ar_summary <- summary(model_gam_ar)
+  gam_ar_summary$test_start_newmoonnumber <- test_start
+  gam_ar_summaries[[i]] <- gam_ar_summary
+  # gam_var_score <- score(forecast(gam_var_model), score = "crps")
+  # gam_var_score$test_start_newmoonnumber <- test_start
+  # gam_var_scores[[i]] <- gam_var_score
+  gam_var_summary <- summary(model_gam_var)
+  gam_var_summary$test_start_newmoonnumber <- test_start
+  gam_var_summaries[[i]] <- gam_var_summary
+}
 
-# The observation-level intercept is a nuisance parameter in this model that we
-# don't really need (and cannot adequately estimate anyway).
-# At present there is no way to drop this term using mvgam, but we can
-# heavily regularize it to zero with a strong prior
-priors <- c(
-  priors,
-  prior(normal(0, 0.001), class = Intercept)
-)
-
-# Fit the model
-model_gam_var <- mvgam(
-  formula = y ~ -1,
-  trend_formula = ~ s(ndvi_ma12, trend, bs = "re") +
-    te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
-    te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
-    te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr")) +
-    te(mintemp, lag, by = weights_pp, k = c(3, 4), bs = c("tp", "cr")),
-  data = data_train,
-  newdata = data_test,
-  family = poisson(),
-  trend_model = "VAR1",
-  priors = priors,
-  samples = 1600
-)
-
-model_gam_ar <- mvgam(
-  formula = y ~ -1,
-  trend_formula = ~ s(ndvi_ma12, trend, bs = "re") +
-    te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
-    te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
-    te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr")) +
-    te(mintemp, lag, by = weights_pp, k = c(3, 4), bs = c("tp", "cr")),
-  data = data_train,
-  newdata = data_test,
-  family = poisson(),
-  trend_model = AR(),
-  priors = priors,
-  samples = 1600
-)
-
-# Prior adjustment from AR model in Clark et al. 2025
-# https://github.com/nicholasjclark/portal_VAR/blob/main/2.%20models.R
-priors <- c(priors, prior(std_normal(), class = b))
-
-model_ar <- mvgam(
-  formula = y ~ series,
-  data = data_train,
-  newdata = data_test,
-  family = poisson(),
-  trend_model = AR(),
-  priors = priors,
-  samples = 1600
-)
-
-saveRDS(model_gam_var, "gam_var_one_year_into_transition_output_y_minus_1.rds")
-saveRDS(model_gam_ar, "gam_ar_one_year_into_transition_output_y_minus_1.rds")
-saveRDS(model_ar, "ar_one_year_into_transition_output_y_minus_1.rds")
+saveRDS(model_gam_var, "gam_var_outregime_forecast_output_y_minus_1.rds")
+saveRDS(model_gam_ar, "gam_ar_outregime_forecast_output_y_minus_1.rds")
+saveRDS(model_ar, "ar_outregime_forecast_output_y_minus_1.rds")
 
 model_gam_var <- readRDS("gam_var_one_year_into_transition_output_y_minus_1.rds")
 model_gam_ar <- readRDS("gam_ar_one_year_into_transition_output_y_minus_1.rds")
@@ -138,7 +171,7 @@ plot(model_gam_var, "forecast", series = 6)
 plot(model_gam_var, "forecast", series = 7)
 
 
-dev.print(pdf, "gam_var_one_year_into_transition_y_minus_1.pdf")
+dev.print(pdf, "gam_var_outregime_y_minus_1.pdf")
 
 par(mfrow = c(3, 3))
 
@@ -150,7 +183,7 @@ plot(model_gam_ar, "forecast", series = 5)
 plot(model_gam_ar, "forecast", series = 6)
 plot(model_gam_ar, "forecast", series = 7)
 
-dev.print(pdf, "gam_ar_one_year_into_transition.pdf")
+dev.print(pdf, "gam_ar_outregime.pdf")
 
 par(mfrow = c(3, 3))
 
@@ -162,4 +195,4 @@ plot(model_ar, "forecast", series = 5)
 plot(model_ar, "forecast", series = 6)
 plot(model_ar, "forecast", series = 7)
 
-dev.print(pdf, "ar_one_year_into_transition_y_just_series.pdf")
+dev.print(pdf, "ar_outregime.pdf")
