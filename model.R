@@ -3,7 +3,7 @@ library(cmdstanr)
 library(forecast)
 library(mvgam)
 library(portalr)
-source("R/get_regime.R")
+# source("R/get_regime.R")
 
 data_all <- readRDS("data_pb_regime.rds")
 
@@ -46,18 +46,14 @@ train_win_width = 60
 gap = 16
 horizon = 7 # shortened from 13 to allow 3 train sets within regime
 
-# ar_scores <- vector(mode = "list", length = length(train_starts))
-# gam_ar_scores <- vector(mode = "list", length = length(train_starts))
-# gam_var_scores <- vector(mode = "list", length = length(train_starts))
-
-ar_summaries <- vector(mode = "list", length = length(train_starts))
-gam_ar_summaries <- vector(mode = "list", length = length(train_starts))
-gam_var_summaries <- vector(mode = "list", length = length(train_starts))
-baseline_summaries <- vector(mode = "list", length = length(train_starts))
+# Saving summaries is not working right now
+# ar_summaries <- vector(mode = "list", length = length(train_starts))
+# gam_ar_summaries <- vector(mode = "list", length = length(train_starts))
+# gam_var_summaries <- vector(mode = "list", length = length(train_starts))
+# baseline_summaries <- vector(mode = "list", length = length(train_starts))
 
 for (i in seq_along(train_starts)){
   train_start <- train_starts[i]
-  print(glue("Starting training: {i}"))
   train_stop <- train_start + 60 - 1
   test_start <- train_stop + gap + 1
   test_stop = test_start + horizon - 1
@@ -146,72 +142,12 @@ for (i in seq_along(train_starts)){
     samples = 1600
   )
   
-  # baseline_score <- score(forecast(baseline_model), score = "crps")
-  # baseline_score$test_start_newmoonnumber <- test_start
-  # baseline_scores[[i]] <- baseline_score
-  baseline_summary <- summary(baseline_model)
-  baseline_summary$test_start_newmoonnumber <- test_start
-  baseline_summaries[[i]] <- baseline_summary
-  # ar_score <- score(forecast(ar_model), score = "crps")
-  # ar_score$test_start_newmoonnumber <- test_start
-  # ar_scores[[i]] <- ar_score
-  ar_summary <- summary(model_ar)
-  ar_summary$test_start_newmoonnumber <- test_start
-  ar_summaries[[i]] <- ar_summary
-  # gam_ar_score <- score(forecast(model_gam_ar), score = "crps")
-  # gam_ar_score$test_start_newmoonnumber <- test_start
-  # gam_ar_scores[[i]] <- gam_ar_score
-  gam_ar_summary <- summary(model_gam_ar)
-  gam_ar_summary$test_start_newmoonnumber <- test_start
-  gam_ar_summaries[[i]] <- gam_ar_summary
-  # gam_var_score <- score(forecast(gam_var_model), score = "crps")
-  # gam_var_score$test_start_newmoonnumber <- test_start
-  # gam_var_scores[[i]] <- gam_var_score
-  gam_var_summary <- summary(model_gam_var)
-  gam_var_summary$test_start_newmoonnumber <- test_start
-  gam_var_summaries[[i]] <- gam_var_summary
+  saveRDS(model_gam_var, paste("gam_var_inregime_output",test_start,".rds", sep=""))
+  saveRDS(model_gam_ar, paste("gam_ar_inregime_output",test_start,".rds", sep=""))
+  saveRDS(model_ar, paste("ar_inregime_output",test_start,".rds", sep=""))
+  saveRDS(baseline_model, paste("baseline_inregime_output",test_start,".rds", sep=""))
+
 }
 
-# saveRDS(model_gam_var, "gam_var_outregime_forecast_output_y_minus_1.rds")
-# saveRDS(model_gam_ar, "gam_ar_outregime_forecast_output_y_minus_1.rds")
-# saveRDS(model_ar, "ar_outregime_forecast_output_y_minus_1.rds")
-# 
-# model_gam_var <- readRDS("gam_var_one_year_into_transition_output_y_minus_1.rds")
-# model_gam_ar <- readRDS("gam_ar_one_year_into_transition_output_y_minus_1.rds")
-# model_ar <- readRDS("ar_one_year_into_transition_output_y_minus_1.rds")
 
-par(mfrow = c(3, 3))
 
-plot(model_gam_var, "forecast", series = 1)
-plot(model_gam_var, "forecast", series = 2)
-plot(model_gam_var, "forecast", series = 3)
-plot(model_gam_var, "forecast", series = 4)
-plot(model_gam_var, "forecast", series = 5)
-plot(model_gam_var, "forecast", series = 6)
-plot(model_gam_var, "forecast", series = 7)
-
-dev.print(pdf, "gam_var_outregime_y_minus_1.pdf")
-
-par(mfrow = c(3, 3))
-
-plot(model_gam_ar, "forecast", series = 1)
-plot(model_gam_ar, "forecast", series = 2)
-plot(model_gam_ar, "forecast", series = 3)
-plot(model_gam_ar, "forecast", series = 4)
-plot(model_gam_ar, "forecast", series = 5)
-plot(model_gam_ar, "forecast", series = 6)
-plot(model_gam_ar, "forecast", series = 7)
-
-dev.print(pdf, "gam_ar_outregime.pdf")
-
-par(mfrow = c(3, 3))
-
-plot(model_ar, "forecast", series = 1)
-plot(model_ar, "forecast", series = 2)
-plot(model_ar, "forecast", series = 3)
-plot(model_ar, "forecast", series = 4)
-plot(model_ar, "forecast", series = 5)
-plot(model_ar, "forecast", series = 6)
-plot(model_ar, "forecast", series = 7)
-
-dev.print(pdf, "ar_outregime.pdf")
