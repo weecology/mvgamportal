@@ -39,6 +39,10 @@ split_train_test <- function(data_all, gap, train_start, train_end, test_start, 
 }
 ### Conduct within regime forecasts
 
+within_train_starts = c(287,299,311) # starts each train set in August - same as the
+                              # out- training set
+without_train_start = c(336)
+
 fit_models = function(data,train_starts,type){
   train_win_width = 60
   gap = 16
@@ -141,7 +145,6 @@ fit_models = function(data,train_starts,type){
   }
 }
 
-in_train_starts = c(287,299,311) # starts each train set in August - same as the
-out_train_starts = c(336)
-fit_models(data_all, in_train_starts, "in")
-fit_models(data_all, out_train_starts, "out")
+fit_models(data_all, within_train_starts, "in")
+
+
