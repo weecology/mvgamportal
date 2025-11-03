@@ -39,31 +39,22 @@ split_train_test <- function(data_all, gap, train_start, train_end, test_start, 
 }
 ### Conduct within regime forecasts
 
-train_starts = c(287,299,311) # starts each train set in August - same as the
-                              # out- training set
-without_train_start = c(336)
-train_win_width = 60
-gap = 16
-horizon = 7 # shortened from 13 to allow 3 train sets within regime
-
-# Saving summaries is not working right now
-# ar_summaries <- vector(mode = "list", length = length(train_starts))
-# gam_ar_summaries <- vector(mode = "list", length = length(train_starts))
-# gam_var_summaries <- vector(mode = "list", length = length(train_starts))
-# baseline_summaries <- vector(mode = "list", length = length(train_starts))
-
-for (i in seq_along(train_starts)){
-  train_start <- train_starts[i]
-  train_stop <- train_start + 60 - 1
-  test_start <- train_stop + gap + 1
-  test_stop = test_start + horizon - 1
-  data_split <- split_train_test(
-    data_all,
-    gap = gap,
-    train_start = train_start,
-    train_end = train_stop,
-    test_start = test_start,
-    test_end = test_stop
+fit_models = function(data,train_starts,type){
+  train_win_width = 60
+  gap = 16
+  horizon = 7 # shortened from 13 to allow 3 train sets within regime
+  for (i in seq_along(train_starts)){
+    train_start <- train_starts[i]
+    train_stop <- train_start + 60 - 1
+    test_start <- train_stop + gap + 1
+    test_stop = test_start + horizon - 1
+    data_split <- split_train_test(
+      data_all,
+      gap = gap,
+      train_start = train_start,
+      train_end = train_stop,
+      test_start = test_start,
+      test_end = test_stop
   )
   data_train <- data_split$train
   data_test <- data_split$test
@@ -92,7 +83,7 @@ for (i in seq_along(train_starts)){
   
   
   ## Fit models
-  
+  print("start baseline model")
   baseline_model <- mvgam(
     formula = y ~ series,
     data = data_train,
@@ -101,7 +92,7 @@ for (i in seq_along(train_starts)){
     priors = ar_priors,
     samples = 1600
   )
-  
+  print("start gam_var")
   model_gam_var <- mvgam(
     formula = y ~ -1,
     trend_formula = ~ s(ndvi_ma12, trend, bs = "re") +
@@ -116,7 +107,7 @@ for (i in seq_along(train_starts)){
     priors = gam_var_priors,
     samples = 1600
   )
-  
+  print("start gam_ar")
   model_gam_ar <- mvgam(
     formula = y ~ -1,
     trend_formula = ~ s(ndvi_ma12, trend, bs = "re") +
@@ -131,7 +122,7 @@ for (i in seq_along(train_starts)){
     priors = gam_ar_priors,
     samples = 1600
   )
-  
+  print("start ar_model")
   model_ar <- mvgam(
     formula = y ~ series,
     data = data_train,
@@ -142,12 +133,15 @@ for (i in seq_along(train_starts)){
     samples = 1600
   )
   
-  saveRDS(model_gam_var, paste("gam_var_inregime_output",test_start,".rds", sep=""))
-  saveRDS(model_gam_ar, paste("gam_ar_inregime_output",test_start,".rds", sep=""))
-  saveRDS(model_ar, paste("ar_inregime_output",test_start,".rds", sep=""))
-  saveRDS(baseline_model, paste("baseline_inregime_output",test_start,".rds", sep=""))
+  saveRDS(model_gam_var, paste("gam_var_",type,"regime_output",test_start,".rds", sep=""))
+  saveRDS(model_gam_ar, paste("gam_ar_",type,"regime_output",test_start,".rds", sep=""))
+  saveRDS(model_ar, paste("ar_",type,"regime_output",test_start,".rds", sep=""))
+  saveRDS(baseline_model, paste("baseline_",type,"regime_output",test_start,".rds", sep=""))
 
+  }
 }
 
-
-
+in_train_starts = c(287,299,311) # starts each train set in August - same as the
+out_train_starts = c(336)
+fit_models(data_all, in_train_starts, "in")
+fit_models(data_all, out_train_starts, "out")
