@@ -22,23 +22,27 @@ gam_var_scores <- vector(mode = "list", length = length(test_starts))
 i = 1
 
 for (test_start in test_starts){
+  print("loading gam_var")
   model_gam_var <- readRDS(paste("gam_var_inregime_output",test_start,".rds", sep=""))
+  print("loading gam_ar")
   model_gam_ar <- readRDS(paste("gam_ar_inregime_output",test_start,".rds", sep=""))
+  print("loading ar")
   model_ar <- readRDS(paste("ar_inregime_output",test_start,".rds", sep=""))
+  print("loading baseline")
   model_baseline = readRDS(paste("baseline_inregime_output",test_start,".rds", sep=""))
   
   species = c(1:8)
   
   for(sp in species){
  
-    # Comment out this for-loop if don't want forecast graphs   
-    par(mfrow = c(2, 2))
-    
-    plot(model_gam_var, "forecast", series = sp)
-    plot(model_gam_ar, "forecast", series = sp) 
-    plot(model_ar, "forecast", series = sp) 
-    plot(model_baseline, "forecast", series = sp) 
-  }
+  #   # Comment out this for-loop if don't want forecast graphs   
+  #   par(mfrow = c(2, 2))
+  #   
+     plot(model_gam_var, "forecast", series = sp)
+  #   plot(model_gam_ar, "forecast", series = sp) 
+  #   plot(model_ar, "forecast", series = sp) 
+  #   plot(model_baseline, "forecast", series = sp) 
+  # }
   
   baseline_scores[[i]] = grab_scores(model_baseline, test_start)
   ar_scores[[i]] = grab_scores(model_ar, test_start)
@@ -51,6 +55,7 @@ saveRDS(gam_var_scores, "gam_var_inregime_scores.rds")
 saveRDS(ar_scores, "ar_inregime_scores.rds")
 saveRDS(gam_ar_scores, "gam_ar_inregime_scores.rds")
 saveRDS(baseline_scores, "baseline_inregime_scores.rds")
+}
 
 #############################
 #   Make skill scores
