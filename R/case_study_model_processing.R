@@ -42,7 +42,7 @@ for (test_start in test_starts){
   #   plot(model_gam_ar, "forecast", series = sp) 
   #   plot(model_ar, "forecast", series = sp) 
   #   plot(model_baseline, "forecast", series = sp) 
-  # }
+  # 
   
   baseline_scores[[i]] = grab_scores(model_baseline, test_start)
   ar_scores[[i]] = grab_scores(model_ar, test_start)
@@ -64,7 +64,7 @@ saveRDS(baseline_scores, "baseline_inregime_scores.rds")
 gam_var_scores <- readRDS("gam_var_inregime_scores.rds")
 gam_ar_scores <- readRDS("gam_ar_inregime_scores.rds")
 ar_scores <- readRDS("ar_inregime_scores.rds")
-baseline_scores = readRDS("gam_var_inregime_scores.rds")
+baseline_scores = readRDS("baseline_inregime_scores.rds")
 
 series = c("all_series", "DO","DM","DS","PP","PB", "PF")
 
@@ -104,3 +104,4 @@ skills_df = rbind(gam_var_skills,gam_ar_skills)
 skills_df = rbind(skills_df, ar_skills)
 
 write.csv(skills_df, "model_skills.csv", row.names = FALSE)
+
