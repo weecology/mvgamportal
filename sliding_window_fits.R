@@ -58,6 +58,18 @@ ar_priors <- c(sigma_prior, intercept_prior, ar_sp_intercept_prior)
 gam_ar_priors <- c(sigma_prior, intercept_prior, ndvi_random_slopes_prior)
 gam_var_priors <- c(sigma_prior, intercept_prior, ndvi_random_slopes_prior)
 
+trend_formula_PP = ~ s(ndvi_ma12, trend, bs = "re") +
+  te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
+  te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
+  te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr")) +
+  te(mintemp, lag, by = weights_pp, k = c(3, 4), bs = c("tp", "cr"))
+
+trend_formula_DX = ~ s(ndvi_ma12, trend, bs = "re") +
+  te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
+  te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
+  te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr")) +
+  te(mintemp, lag, by = weights_pp, k = c(3, 4), bs = c("tp", "cr"))
+
 newmoon_min <- min(data_all$newmoonnumber)
 newmoon_max <- max(data_all$newmoonnumber)
 train_win_width <- 60
@@ -93,6 +105,12 @@ for (i in initial) { #seq_along(train_starts)
   )
   data_train <- data_split$train
   data_test <- data_split$test
+  
+  if("PP" %in% levels(data_split$train$series)) {
+    trend_formula = trend_formula_PP
+  } else {
+    trend_formula = trend_formula_DX
+  }
 
   baseline_model <- mvgam(
     formula = y ~ series,
@@ -109,16 +127,12 @@ for (i in initial) { #seq_along(train_starts)
     family = poisson(),
     trend_model = AR(),
     priors = ar_priors,
-    burnin = 10000
+    burnin = 3000
   )
 
   gam_ar_model <- mvgam(
     formula = y ~ -1,
-    trend_formula = ~ s(ndvi_ma12, trend, bs = "re") +
-      te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
-      te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
-      te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr")) +
-      te(mintemp, lag, by = weights_pp, k = c(3, 4), bs = c("tp", "cr")),
+    trend_formula = trend_formula,
     data = data_train,
     newdata = data_test,
     family = poisson(),
@@ -129,11 +143,7 @@ for (i in initial) { #seq_along(train_starts)
 
   gam_var_model <- mvgam(
     formula = y ~ -1,
-    trend_formula = ~ s(ndvi_ma12, trend, bs = "re") +
-      te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
-      te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
-      te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr")) +
-      te(mintemp, lag, by = weights_pp, k = c(3, 4), bs = c("tp", "cr")),
+    trend_formula = trend_formula,
     data = data_train,
     newdata = data_test,
     family = poisson(),
@@ -144,27 +154,35 @@ for (i in initial) { #seq_along(train_starts)
 
   baseline_score <- score(forecast(baseline_model), score = "crps")
   baseline_score$test_start_newmoonnumber <- test_start
+  baseline_score$species_list <- species_list
   baseline_scores[[i]] <- baseline_score
   baseline_summary <- summary(baseline_model)
   baseline_summary$test_start_newmoonnumber <- test_start
+  baseline_summary$species_list <- species_list
   baseline_summaries[[i]] <- baseline_summary
   ar_score <- score(forecast(ar_model), score = "crps")
   ar_score$test_start_newmoonnumber <- test_start
+  ar_score$species_list <- species_list
   ar_scores[[i]] <- ar_score
   ar_summary <- summary(ar_model)
   ar_summary$test_start_newmoonnumber <- test_start
+  ar_summary$species_list <- species_list
   ar_summaries[[i]] <- ar_summary
   gam_ar_score <- score(forecast(gam_ar_model), score = "crps")
   gam_ar_score$test_start_newmoonnumber <- test_start
+  gam_ar_score$species_list <- species_list
   gam_ar_scores[[i]] <- gam_ar_score
   gam_ar_summary <- summary(gam_ar_model)
   gam_ar_summary$test_start_newmoonnumber <- test_start
+  gam_ar_summary$species_list <- species_list
   gam_ar_summaries[[i]] <- gam_ar_summary
   gam_var_score <- score(forecast(gam_var_model), score = "crps")
   gam_var_score$test_start_newmoonnumber <- test_start
+  gam_var_score$species_list <- species_list
   gam_var_scores[[i]] <- gam_var_score
   gam_var_summary <- summary(gam_var_model)
   gam_var_summary$test_start_newmoonnumber <- test_start
+  gar_var_summary$species_list <- species_list
   gam_var_summaries[[i]] <- gam_var_summary
   
   source("~/mvgamportal/skill_scores.r")
