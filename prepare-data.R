@@ -186,7 +186,7 @@ data_all <- list(
 saveRDS(data_all, file = "data_all.rds")
 
 model_dat_pb_regime <- model_dat |>
-  filter(series != "DS")
+  filter(!(series %in% c("PE","RM","DS")))
 
 data_pb_regime <- list(
   lag = lag,
@@ -202,14 +202,39 @@ data_pb_regime <- list(
   weights_dm = weights_dm,
   weights_do = weights_do,
   weights_pb = weights_pb,
-  weights_pe = weights_pe,
   weights_pf = weights_pf,
   weights_pp = weights_pp,
-  weights_rm = weights_rm,
   y = model_dat_pb_regime$y,
-  series = model_dat_pb_regime$series,
+  series = droplevels(model_dat_pb_regime$series),
   time = model_dat_pb_regime$time,
   newmoonnumber = model_dat_pb_regime$newmoonnumber
 )
 
-saveRDS(data_all, file = "data_pb_regime.rds")
+saveRDS(data_pb_regime, file = "data_pb_regime.rds")
+
+model_dat_heteromyids <- model_dat |>
+  filter(!(series %in% c("PE","RM")))
+
+data_heteromyid <- list(
+  lag = lag,
+  meantemp = model_dat_heteromyids$meantemp,
+  meantemp_lag_1 = model_dat_heteromyids$meantemp_lag_1,
+  mintemp = as.matrix(select(model_dat_heteromyids, mintemp_lag_1:mintemp_lag_6)),
+  mintemp_ma3 = model_dat_heteromyids$mintemp_ma3,
+  maxtemp = as.matrix(select(model_dat_heteromyids, maxtemp_lag_1:maxtemp_lag_6)),
+  maxtemp_ma3 = model_dat_heteromyids$maxtemp_ma3,
+  warm_precip = model_dat_heteromyids$warm_precip,
+  cool_precip = model_dat_heteromyids$cool_precip,
+  ndvi_ma12 = model_dat_heteromyids$ndvi_ma12,
+  weights_dm = weights_dm,
+  weights_do = weights_do,
+  weights_ds = weights_ds,
+  weights_pb = weights_pb,
+  weights_pf = weights_pf,
+  weights_pp = weights_pp,
+  y = model_dat_heteromyids$y,
+  series = droplevels(model_dat_heteromyids$series),
+  time = model_dat_heteromyids$time,
+  newmoonnumber = model_dat_heteromyids$newmoonnumber
+)
+saveRDS(data_heteromyid, file = "data_heteromyid.rds")
