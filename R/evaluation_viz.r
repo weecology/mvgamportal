@@ -1,6 +1,8 @@
 library(dplyr)
 library(ggplot2)
 
+# load("~/Downloads/mvgam_sliding_window.RData")
+
 baseline_dfs <- lapply(baseline_scores, data.frame, stringsAsFactors = FALSE)
 baseline <- bind_rows(baseline_dfs) %>%
   mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
@@ -61,16 +63,17 @@ pp_skill_scores = skill_scores[skill_scores$species=="PP",]
 pb_skill_scores = skill_scores[skill_scores$species=="PB",]
 do_skill_scores = skill_scores[skill_scores$species=="DO",]
 
-ggplot(data=overall_skill_scores, aes(x=newmoonnumber, y=skill_score, color=model)) +
+ggplot(data=overall_skill_scores, aes(x=newmoonnumber, y=skill_score, color=eval_horizon)) +
   geom_rect(aes(xmin=140, xmax=230, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=263, xmax=278, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=396, xmax=411, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_line() +
   facet_wrap(~model, ncol = 1, scales = "free_y") +
+#  ylim(-1,1) +
   theme_minimal() +
   theme(legend.position = "none") 
 
-ggplot(data=dm_skill_scores, aes(x=newmoonnumber, y=skill_score, color=model)) +
+ggplot(data=dm_skill_scores, aes(x=newmoonnumber, y=skill_score, color=eval_horizon)) +
   geom_rect(aes(xmin=140, xmax=230, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=263, xmax=278, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=396, xmax=411, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
@@ -79,7 +82,7 @@ ggplot(data=dm_skill_scores, aes(x=newmoonnumber, y=skill_score, color=model)) +
   theme_minimal() +
   theme(legend.position = "none")
 
-ggplot(data=pp_skill_scores, aes(x=newmoonnumber, y=skill_score, color=model)) +
+ggplot(data=pp_skill_scores, aes(x=newmoonnumber, y=skill_score, color=eval_horizon)) +
   geom_rect(aes(xmin=140, xmax=230, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=263, xmax=278, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=396, xmax=411, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
@@ -88,7 +91,7 @@ ggplot(data=pp_skill_scores, aes(x=newmoonnumber, y=skill_score, color=model)) +
   theme_minimal() +
   theme(legend.position = "none")
 
-ggplot(data=pb_skill_scores, aes(x=newmoonnumber, y=skill_score, color=model)) +
+ggplot(data=pb_skill_scores, aes(x=newmoonnumber, y=skill_score, color=eval_horizon)) +
   geom_rect(aes(xmin=140, xmax=230, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=263, xmax=278, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=396, xmax=411, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
@@ -97,7 +100,7 @@ ggplot(data=pb_skill_scores, aes(x=newmoonnumber, y=skill_score, color=model)) +
   theme_minimal() +
   theme(legend.position = "none")
 
-ggplot(data=do_skill_scores, aes(x=newmoonnumber, y=score, color=model)) +
+ggplot(data=do_skill_scores, aes(x=newmoonnumber, y=score, color=eval_horizon)) +
   geom_rect(aes(xmin=140, xmax=230, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=263, xmax=278, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=396, xmax=411, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
@@ -106,11 +109,32 @@ ggplot(data=do_skill_scores, aes(x=newmoonnumber, y=score, color=model)) +
   theme_minimal() +
   theme(legend.position = "none")
 
-ggplot(data=species_skill_scores, aes(x=newmoonnumber, y=score, color=model)) +
+ggplot(data=subset(species_skill_scores,subset = model=="AR"), aes(x=newmoonnumber, y=skill_score, color=eval_horizon)) +
   geom_rect(aes(xmin=140, xmax=230, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=263, xmax=278, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=396, xmax=411, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_line() +
-  facet_wrap(~species, ncol = 4, scales = "free_y") +
+  facet_wrap(~species, ncol = 3, scales = "free_y") +
+#  ylim(-1,1) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+ggplot(data=subset(species_skill_scores,subset = model=="GAM_AR"), aes(x=newmoonnumber, y=skill_score, color=eval_horizon)) +
+  geom_rect(aes(xmin=140, xmax=230, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
+  geom_rect(aes(xmin=263, xmax=278, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
+  geom_rect(aes(xmin=396, xmax=411, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
+  geom_line() +
+  facet_wrap(~species, ncol = 3, scales = "free_y") +
+  ylim(-1,1) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+ggplot(data=subset(species_skill_scores,subset = model=="GAM_VAR"), aes(x=newmoonnumber, y=skill_score, color=eval_horizon)) +
+  geom_rect(aes(xmin=140, xmax=230, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
+  geom_rect(aes(xmin=263, xmax=278, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
+  geom_rect(aes(xmin=396, xmax=411, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
+  geom_line() +
+  facet_wrap(~species, ncol = 3, scales = "free_y") +
+#  ylim(-1,1) +
   theme_minimal() +
   theme(legend.position = "none")
