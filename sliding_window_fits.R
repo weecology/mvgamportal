@@ -3,9 +3,10 @@ library(cmdstanr)
 library(forecast)
 library(mvgam)
 library(portalr)
+library(glue)
 source("R/get_regime.R")
 
-data_all <- readRDS("data_all.rds")
+data_all <- readRDS("data_heteromyid.rds")
 
 split_train_test <- function(data_all, gap, train_start, train_end, test_start, test_end) {
   train_inds <- which(data_all$newmoonnumber >= train_start &
@@ -72,8 +73,12 @@ ar_summaries <- vector(mode = "list", length = length(train_starts))
 gam_ar_summaries <- vector(mode = "list", length = length(train_starts))
 gam_var_summaries <- vector(mode = "list", length = length(train_starts))
 
-for (i in seq_along(train_starts)) {
-  train_start <- train_starts[i]
+targets = c(158,180,200,220,240,248,260,280,285,300,320,340,360,380,400,420,428,440,460,480)
+initial = targets - 60
+
+for (i in initial) { #seq_along(train_starts)
+  target = i + 60
+  train_start <- train_starts[i - 95] # remove the -95
   print(glue("Starting training: {i}"))
   train_end <- train_start + 60 - 1
   test_start <- train_end + 1
@@ -94,8 +99,7 @@ for (i in seq_along(train_starts)) {
     data = data_train,
     newdata = data_test,
     family = poisson(),
-    priors = ar_priors,
-    samples = 1600
+    priors = ar_priors
   )
 
   ar_model <- mvgam(
@@ -105,7 +109,7 @@ for (i in seq_along(train_starts)) {
     family = poisson(),
     trend_model = AR(),
     priors = ar_priors,
-    samples = 1600
+    burnin = 10000
   )
 
   gam_ar_model <- mvgam(
@@ -120,7 +124,7 @@ for (i in seq_along(train_starts)) {
     family = poisson(),
     trend_model = AR(),
     priors = gam_ar_priors,
-    samples = 1600
+    burnin = 3000
   )
 
   gam_var_model <- mvgam(
@@ -135,7 +139,7 @@ for (i in seq_along(train_starts)) {
     family = poisson(),
     trend_model = VAR(),
     priors = gam_var_priors,
-    samples = 1600
+    burnin = 3000
   )
 
   baseline_score <- score(forecast(baseline_model), score = "crps")
@@ -162,4 +166,7 @@ for (i in seq_along(train_starts)) {
   gam_var_summary <- summary(gam_var_model)
   gam_var_summary$test_start_newmoonnumber <- test_start
   gam_var_summaries[[i]] <- gam_var_summary
+  
+  source("~/mvgamportal/skill_scores.r")
+  source("~/mvgamportal/forecast_plots.r", echo = TRUE)
 }
