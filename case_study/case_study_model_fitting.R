@@ -5,7 +5,8 @@ library(mvgam)
 library(portalr)
 # source("R/get_regime.R")
 
-data_all <- readRDS("data_pb_regime.rds")
+path = "./case_study/"
+data_all <- readRDS(paste(path,"data_pb_regime.rds",sep=""))
 
 split_train_test <- function(data_all, gap, train_start, train_end, test_start, test_end) {
   train_inds <- which(data_all$newmoonnumber >= train_start &
@@ -84,7 +85,7 @@ fit_models = function(data,train_starts,type){
   
   
   ## Fit models
-  print("start baseline model")
+  print(paste("start baseline model",i, sep=": "))
   baseline_model <- mvgam(
     formula = y ~ series,
     data = data_train,
@@ -93,7 +94,7 @@ fit_models = function(data,train_starts,type){
     priors = ar_priors,
     samples = 1600
   )
-  print("start gam_var")
+  print(paste("start gam_var", i, sep=": "))
   model_gam_var <- mvgam(
     formula = y ~ -1,
     trend_formula = ~ s(ndvi_ma12, trend, bs = "re") +
@@ -108,7 +109,7 @@ fit_models = function(data,train_starts,type){
     priors = gam_var_priors,
     samples = 1600
   )
-  print("start gam_ar")
+  print(paste("start gam_ar",i, sep=": "))
   model_gam_ar <- mvgam(
     formula = y ~ -1,
     trend_formula = ~ s(ndvi_ma12, trend, bs = "re") +
@@ -123,7 +124,7 @@ fit_models = function(data,train_starts,type){
     priors = gam_ar_priors,
     samples = 1600
   )
-  print("start ar_model")
+  print(paste("start ar_model", i, sep=": "))
   model_ar <- mvgam(
     formula = y ~ series,
     data = data_train,
@@ -134,10 +135,18 @@ fit_models = function(data,train_starts,type){
     samples = 1600
   )
   
-  saveRDS(model_gam_var, paste("gam_var_",type,"regime_output",test_start,".rds", sep=""))
-  saveRDS(model_gam_ar, paste("gam_ar_",type,"regime_output",test_start,".rds", sep=""))
-  saveRDS(model_ar, paste("ar_",type,"regime_output",test_start,".rds", sep=""))
-  saveRDS(baseline_model, paste("baseline_",type,"regime_output",test_start,".rds", sep=""))
+  saveRDS(model_gam_var, 
+          paste(path,"model_outputs/gam_var_",type,"regime_output",test_start,".rds", 
+                sep=""))
+  saveRDS(model_gam_ar, 
+          paste(path,"model_outputs/gam_ar_",type,"regime_output",test_start,".rds", 
+                sep=""))
+  saveRDS(model_ar, 
+          paste(path,"model_outputs/ar_",type,"regime_output",test_start,".rds", 
+                sep=""))
+  saveRDS(baseline_model, 
+          paste(path,"/model_outputs/baseline_",type,"regime_output",test_start,".rds", 
+                sep=""))
 
   }
 }
@@ -147,5 +156,5 @@ in_train_starts = c(287,299,311) # starts each train set in August - same as the
 out_train_start = c(336)
 
 fit_models(data_all, in_train_starts, "in")
-fit_models(data_all, out_train_starts, "out")
+fit_models(data_all, out_train_start, "out")
 
