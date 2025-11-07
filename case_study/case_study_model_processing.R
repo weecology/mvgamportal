@@ -1,10 +1,8 @@
 library(dplyr)
 library(mvgam)
-library(ggplot2)
-library(patchwork)
 
 ###############################
-#   Extract CRPS scores & Plot model forecasts
+#   Functions to extract CRPS scores & Plot model forecasts
 ###############################
 
 grab_scores = function(model, test_start){
@@ -13,70 +11,74 @@ grab_scores = function(model, test_start){
   return(score)
 }
 
-
-
-process_modeloutput = function(type, test_starts){
+process_modeloutput = function(within_starts, outside_starts) {
+  test_starts = c(within_starts, outside_starts)
+  
   baseline_scores = vector(mode = "list", length = length(test_starts))
   ar_scores <- vector(mode = "list", length = length(test_starts))
   gam_ar_scores <- vector(mode = "list", length = length(test_starts))
   gam_var_scores <- vector(mode = "list", length = length(test_starts))
   
+  path = "./case_study/model_outputs/"
   i = 1
-  for (test_start in test_starts){
-    print("loading gam_var")
-    model_gam_var <- readRDS(paste("gam_var_", type,"regime_output",test_start,".rds", sep=""))
-    print("loading gam_ar")
-    model_gam_ar <- readRDS(paste("gam_ar_", type,"regime_output",test_start,".rds", sep=""))
-    print("loading ar")
-    model_ar <- readRDS(paste("ar_", type,"regime_output",test_start,".rds", sep=""))
-    print("loading baseline")
-    model_baseline = readRDS(paste("baseline_",type,"regime_output",test_start,".rds", sep=""))
-    
-    species = c(1:8)
-  
-    for(sp in species) {
-      #   # Comment out this for-loop if don't want forecast graphs
-      #   par(mfrow = c(2, 2))
-      #
-      plot(model_gam_var, "forecast", series = sp)
-      #   plot(model_gam_ar, "forecast", series = sp)
-      #   plot(model_ar, "forecast", series = sp)
-      #   plot(model_baseline, "forecast", series = sp)
-      #
-      
-      baseline_scores[[i]] = grab_scores(model_baseline, test_start)
-      ar_scores[[i]] = grab_scores(model_ar, test_start)
-      gam_ar_scores[[i]] = grab_scores(model_gam_ar, test_start)
-      gam_var_scores[[i]] = grab_scores(model_gam_var, test_start)
-      i = i + 1
+  for (test_start in test_starts) {
+    if (test_start %in% outside_starts) {
+      type = "out"
+    } else {
+      type = "in"
     }
+    print(paste("loading gam_var", test_start, sep = ""))
+    model_gam_var <- readRDS(paste(path,"gam_var_",type,"regime_output",test_start,".rds",
+                                   sep = ""))
     
-    saveRDS(gam_var_scores, paste("gam_var_", type, "regime_scores.rds", sep = ""))
-    saveRDS(ar_scores, paste("ar_", type, "regime_scores.rds", sep = ""))
-    saveRDS(gam_ar_scores, paste("gam_ar_", type, "regime_scores.rds", sep = ""))
-    saveRDS(baseline_scores, paste("baseline_", type, "regime_scores.rds", sep = ""))
+    print(paste("loading gam_ar", test_start, sep = ""))
+    model_gam_ar <- readRDS(paste(path,"gam_ar_",type,"regime_output",test_start,".rds",
+                                  sep = ""))
+    
+    print(paste("loading ar", test_start, sep = ""))
+    model_ar <- readRDS(paste(path, "ar_", type, "regime_output", test_start, ".rds", 
+                              sep = ""))
+    
+    print(paste("loading baseline", test_start, sep = ""))
+    model_baseline = readRDS(paste(path,"baseline_",type,"regime_output", test_start,".rds",
+                                   sep = "" ))
+    
+    species = c(1:9)
+    
+    for (sp in species) {
+      baseline_scores[[i]] = grab_scores(model_baseline, test_start)
+      print(paste("got baseline", test_start, sp, sep=" "))
+      ar_scores[[i]] = grab_scores(model_ar, test_start)
+      print(paste("got ar", test_start, sp, sep=" "))
+      gam_ar_scores[[i]] = grab_scores(model_gam_ar, test_start)
+      print(paste("got gam_ar", test_start, sp, sep=" "))
+      gam_var_scores[[i]] = grab_scores(model_gam_var, test_start)
+      print(paste("got gam var", test_start, sp, sep=" "))
+    }
+    i = i + 1
   }
+  
+  saveRDS(gam_var_scores, paste(path, "gam_var_scores.rds", sep = ""))
+  saveRDS(ar_scores, paste(path, "ar_scores.rds", sep = ""))
+  saveRDS(gam_ar_scores, paste(path, "gam_ar_scores.rds", sep = ""))
+  saveRDS(baseline_scores, paste(path, "baseline_scores.rds", sep = ""))
+  
 }
 
 #############################
-#   Make skill scores
+#   Functions to calculate skill scores
 #############################
 
-gam_var_scores <- readRDS("gam_var_inregime_scores.rds")
-gam_ar_scores <- readRDS("gam_ar_inregime_scores.rds")
-ar_scores <- readRDS("ar_inregime_scores.rds")
-baseline_scores = readRDS("baseline_inregime_scores.rds")
-
-series = c("all_series", "DO","DM","DS","PP","PB", "PF")
-
-get_model_skill = function(scores, series){
+calc_model_skill = function(scores, series){
   model_name = deparse(substitute(scores))
   output = data.frame(model_type = character(), 
                       train_set = factor(),
                       species = character(),
                       horizon = integer(),
                       skill = numeric())
-  train_sets = c(1:3)
+  path = "./case_study/model_outputs/"
+  baseline_scores = readRDS(paste(path,"baseline_scores.rds", sep=""))
+  train_sets = c(1:4)
   for (train_set in train_sets){
     for (sp in series){
       baseline_crps = baseline_scores[[train_set]][[sp]][["score"]]
@@ -97,15 +99,37 @@ get_model_skill = function(scores, series){
   return(output)
 }
 
+get_model_skill = function(series) {
+  path = "./case_study/model_outputs/"
+  gam_var_scores <- readRDS(paste(path, "gam_var_scores.rds", sep = ""))
+  gam_ar_scores <- readRDS(paste(path, "gam_ar_scores.rds", sep = ""))
+  ar_scores <- readRDS(paste(path, "ar_scores.rds", sep = ""))
+  
+  gam_var_skills = calc_model_skill(gam_var_scores, series)
+  gam_ar_skills = calc_model_skill(gam_ar_scores, series)
+  ar_skills = calc_model_skill(ar_scores, series)
+  skills_df = rbind(gam_var_skills, gam_ar_skills)
+  skills_df = rbind(skills_df, ar_skills)
+  write.csv(skills_df,
+            paste(path, "model_skills.csv", sep = ""),
+            row.names = FALSE)
+}
+
+######## Executable code
 in_starts = c(363, 375, 387)
 out_starts = c(412)
-process_modeloutput("in", in_starts)
-process_modeloutput("out", out_starts)
-gam_var_skills = get_model_skill(gam_var_scores, series)
-gam_ar_skills = get_model_skill(gam_ar_scores, series)
-ar_skills = get_model_skill(ar_scores, series)
-skills_df = rbind(gam_var_skills,gam_ar_skills)
-skills_df = rbind(skills_df, ar_skills)
 
-write.csv(skills_df, "model_skills.csv", row.names = FALSE)
+
+# generates score files for within and out of regime forecasts
+# the plots = "yes" input plots the forecasts for each species for each train-test set
+# in theory. But it seems to be triggering something bad in generating the scores file
+# so I've turned it off in the function.
+
+process_modeloutput(in_starts, out_starts)
+
+# generates skills files for within and out of regime forecasts
+series = c("all_series", "DO","DM", "PP","PB", "PF")
+get_model_skill(series)
+
+
 
