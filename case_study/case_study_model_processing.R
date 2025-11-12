@@ -11,6 +11,7 @@ grab_scores = function(model, test_start){
   return(score)
 }
 
+# note: need to change hard-coded series numbers to a number read from the file
 process_modeloutput = function(within_starts, outside_starts) {
   test_starts = c(within_starts, outside_starts)
   
@@ -43,18 +44,16 @@ process_modeloutput = function(within_starts, outside_starts) {
     model_baseline = readRDS(paste(path,"baseline_",type,"regime_output", test_start,".rds",
                                    sep = "" ))
     
-    species = c(1:9)
+    species = c(1:6)
     
-    for (sp in species) {
       baseline_scores[[i]] = grab_scores(model_baseline, test_start)
-      print(paste("got baseline", test_start, sp, sep=" "))
+      print(paste("got baseline", test_start, sep=" "))
       ar_scores[[i]] = grab_scores(model_ar, test_start)
-      print(paste("got ar", test_start, sp, sep=" "))
+      print(paste("got ar", test_start, sep=" "))
       gam_ar_scores[[i]] = grab_scores(model_gam_ar, test_start)
-      print(paste("got gam_ar", test_start, sp, sep=" "))
+      print(paste("got gam_ar", test_start,  sep=" "))
       gam_var_scores[[i]] = grab_scores(model_gam_var, test_start)
-      print(paste("got gam var", test_start, sp, sep=" "))
-    }
+      print(paste("got gam var", test_start, sep=" "))
     i = i + 1
   }
   
@@ -115,6 +114,8 @@ get_model_skill = function(series) {
             row.names = FALSE)
 }
 
+
+
 ######## Executable code
 in_starts = c(363, 375, 387)
 out_starts = c(412)
@@ -128,6 +129,8 @@ out_starts = c(412)
 process_modeloutput(in_starts, out_starts)
 
 # generates skills files for within and out of regime forecasts
+# FYI: would be nice to have the code figure out what species are in the file so it
+# can adjust dynamically to any changes.
 series = c("all_series", "DO","DM", "PP","PB", "PF")
 get_model_skill(series)
 

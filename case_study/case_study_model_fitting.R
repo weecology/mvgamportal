@@ -3,10 +3,8 @@ library(cmdstanr)
 library(forecast)
 library(mvgam)
 library(portalr)
-# source("R/get_regime.R")
 
-path = "./case_study/"
-data_all <- readRDS(paste(path,"data_pb_regime.rds",sep=""))
+#### Functions
 
 split_train_test <- function(data_all, gap, train_start, train_end, test_start, test_end) {
   train_inds <- which(data_all$newmoonnumber >= train_start &
@@ -38,7 +36,7 @@ split_train_test <- function(data_all, gap, train_start, train_end, test_start, 
 
   return(list(train = data_train, test = data_test))
 }
-### Conduct within regime forecasts
+### Conduct forecasts
 
 
 fit_models = function(data,train_starts,type){
@@ -151,6 +149,10 @@ fit_models = function(data,train_starts,type){
   }
 }
 
+#### Code to run functions
+
+path = "./case_study/"
+data_all <- readRDS(paste(path,"data_pb_regime.rds",sep=""))
 
 in_train_starts = c(287,299,311) # starts each train set in August - same as the
 out_train_start = c(336)
