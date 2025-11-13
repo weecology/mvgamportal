@@ -114,17 +114,12 @@ get_model_skill = function(series) {
             row.names = FALSE)
 }
 
-
-
 ######## Executable code
 in_starts = c(363, 375, 387)
 out_starts = c(412)
 
 
 # generates score files for within and out of regime forecasts
-# the plots = "yes" input plots the forecasts for each species for each train-test set
-# in theory. But it seems to be triggering something bad in generating the scores file
-# so I've turned it off in the function.
 
 process_modeloutput(in_starts, out_starts)
 
