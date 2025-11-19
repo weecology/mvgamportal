@@ -9,8 +9,19 @@ source("R/get_regime.R")
 data_all <- readRDS("data_heteromyid.rds")
 
 split_train_test <- function(data_all, gap, train_start, train_end, test_start, test_end) {
+  species_list <- data.frame(newmoonnumber=data_all$newmoonnumber,series=data_all$series,y=data_all$y) |>
+    filter(newmoonnumber >= train_start, newmoonnumber <= (train_end)) |>
+    group_by(newmoonnumber, series) |>
+    summarise(abundance = sum(y, na.rm = TRUE), .groups = 'drop') |>
+    group_by(series) |>
+    summarise(occupancy = sum(abundance > 0) / n(), .groups = 'drop') |>
+    filter(occupancy >= 0.30) |>
+    pull(series) |>
+    droplevels()
+  
   train_inds <- which(data_all$newmoonnumber >= train_start &
-    data_all$newmoonnumber <= (train_end)) # Old +1 here keeps the first observation after the gap to serve as the initial condition, also cut +gap since no gaps
+    data_all$newmoonnumber <= (train_end) &     # Old +1 here keeps the first observation after the gap to serve as the initial condition, also cut +gap since no gaps
+    data_all$series %in% species_list)
   data_train <- lapply(seq_along(data_all), function(x) {
     if (is.matrix(data_all[[x]])) {
       data_all[[x]][train_inds, ]
@@ -20,12 +31,14 @@ split_train_test <- function(data_all, gap, train_start, train_end, test_start, 
   })
 
   names(data_train) <- names(data_all)
+  data_train$series <- droplevels(data_train$series)
   # gap_inds <- which(data_train$newmoonnumber >= (train_end + 1) &
   #   data_train$newmoonnumber <= (train_end + gap))
   # data_train$y[gap_inds] <- NA
 
   test_inds <- which(data_all$newmoonnumber >= (test_start) & # Old +1 here was to skip the initial condition point
-    data_all$newmoonnumber <= test_end)
+    data_all$newmoonnumber <= test_end &
+    data_all$series %in% species_list)
   data_test <- lapply(seq_along(data_all), function(x) {
     if (is.matrix(data_all[[x]])) {
       data_all[[x]][test_inds, ]
@@ -35,8 +48,9 @@ split_train_test <- function(data_all, gap, train_start, train_end, test_start, 
   })
 
   names(data_test) <- names(data_all)
-
-  return(list(train = data_train, test = data_test))
+  data_test$series <- droplevels(data_test$series)
+  
+  return(list(train = data_train, test = data_test, species_list=species_list))
 }
 
 # Priors
@@ -106,7 +120,7 @@ for (i in initial) { #seq_along(train_starts)
   data_train <- data_split$train
   data_test <- data_split$test
   
-  if("PP" %in% levels(data_split$train$series)) {
+  if("PP" %in% levels(data_split$species_list)) {
     trend_formula = trend_formula_PP
   } else {
     trend_formula = trend_formula_DX
@@ -117,7 +131,9 @@ for (i in initial) { #seq_along(train_starts)
     data = data_train,
     newdata = data_test,
     family = poisson(),
-    priors = ar_priors
+    priors = ar_priors,
+    burnin = 5000,
+    samples = 10000
   )
 
   ar_model <- mvgam(
@@ -127,7 +143,8 @@ for (i in initial) { #seq_along(train_starts)
     family = poisson(),
     trend_model = AR(),
     priors = ar_priors,
-    burnin = 3000
+    burnin = 5000,
+    samples = 10000
   )
 
   gam_ar_model <- mvgam(
@@ -138,7 +155,8 @@ for (i in initial) { #seq_along(train_starts)
     family = poisson(),
     trend_model = AR(),
     priors = gam_ar_priors,
-    burnin = 3000
+    burnin = 5000,
+    samples = 10000
   )
 
   gam_var_model <- mvgam(
@@ -149,40 +167,41 @@ for (i in initial) { #seq_along(train_starts)
     family = poisson(),
     trend_model = VAR(),
     priors = gam_var_priors,
-    burnin = 3000
+    burnin = 5000,
+    samples = 10000
   )
 
   baseline_score <- score(forecast(baseline_model), score = "crps")
   baseline_score$test_start_newmoonnumber <- test_start
-  baseline_score$species_list <- species_list
+  baseline_score$species_list <- paste(data_split$species_list,collapse="_")
   baseline_scores[[i]] <- baseline_score
   baseline_summary <- summary(baseline_model)
   baseline_summary$test_start_newmoonnumber <- test_start
-  baseline_summary$species_list <- species_list
+  baseline_summary$species_list <- paste(data_split$species_list,collapse="_")
   baseline_summaries[[i]] <- baseline_summary
   ar_score <- score(forecast(ar_model), score = "crps")
   ar_score$test_start_newmoonnumber <- test_start
-  ar_score$species_list <- species_list
+  ar_score$species_list <- paste(data_split$species_list,collapse="_")
   ar_scores[[i]] <- ar_score
   ar_summary <- summary(ar_model)
   ar_summary$test_start_newmoonnumber <- test_start
-  ar_summary$species_list <- species_list
+  ar_summary$species_list <- paste(data_split$species_list,collapse="_")
   ar_summaries[[i]] <- ar_summary
   gam_ar_score <- score(forecast(gam_ar_model), score = "crps")
   gam_ar_score$test_start_newmoonnumber <- test_start
-  gam_ar_score$species_list <- species_list
+  gam_ar_score$species_list <- paste(data_split$species_list,collapse="_")
   gam_ar_scores[[i]] <- gam_ar_score
   gam_ar_summary <- summary(gam_ar_model)
   gam_ar_summary$test_start_newmoonnumber <- test_start
-  gam_ar_summary$species_list <- species_list
+  gam_ar_summary$species_list <- paste(data_split$species_list,collapse="_")
   gam_ar_summaries[[i]] <- gam_ar_summary
   gam_var_score <- score(forecast(gam_var_model), score = "crps")
   gam_var_score$test_start_newmoonnumber <- test_start
-  gam_var_score$species_list <- species_list
+  gam_var_score$species_list <- paste(data_split$species_list,collapse="_")
   gam_var_scores[[i]] <- gam_var_score
   gam_var_summary <- summary(gam_var_model)
   gam_var_summary$test_start_newmoonnumber <- test_start
-  gar_var_summary$species_list <- species_list
+  gam_var_summary$species_list <- paste(data_split$species_list,collapse="_")
   gam_var_summaries[[i]] <- gam_var_summary
   
   source("~/mvgamportal/skill_scores.r")

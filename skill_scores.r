@@ -1,7 +1,7 @@
 baseline <- as.data.frame(baseline_score) %>%
   mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
   select(-contains("score_type")) %>%
-  tidyr::pivot_longer(cols = !c("test_start_newmoonnumber","newmoonnumber"),
+  tidyr::pivot_longer(cols = !c("test_start_newmoonnumber","newmoonnumber","species_list"),
                       names_to = c("species", "type"),
                       names_sep = "\\.") %>%
   tidyr::pivot_wider(names_from = "type",
@@ -11,7 +11,7 @@ baseline <- as.data.frame(baseline_score) %>%
 ar <- as.data.frame(ar_score) %>%
   mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
   select(-contains("score_type")) %>%
-  tidyr::pivot_longer(cols = !c("test_start_newmoonnumber","newmoonnumber"),
+  tidyr::pivot_longer(cols = !c("test_start_newmoonnumber","newmoonnumber","species_list"),
                       names_to = c("species", "type"),
                       names_sep = "\\.") %>%
   tidyr::pivot_wider(names_from = "type",
@@ -23,7 +23,7 @@ ar <- as.data.frame(ar_score) %>%
 gam_ar <- as.data.frame(gam_ar_score) %>%
   mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
   select(-contains("score_type")) %>%
-  tidyr::pivot_longer(cols = !c("test_start_newmoonnumber","newmoonnumber"),
+  tidyr::pivot_longer(cols = !c("test_start_newmoonnumber","newmoonnumber","species_list"),
                       names_to = c("species", "type"),
                       names_sep = "\\.") %>%
   tidyr::pivot_wider(names_from = "type",
@@ -35,7 +35,7 @@ gam_ar <- as.data.frame(gam_ar_score) %>%
 gam_var <- as.data.frame(gam_var_score) %>%
   mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
   select(-contains("score_type")) %>%
-  tidyr::pivot_longer(cols = !c("test_start_newmoonnumber","newmoonnumber"),
+  tidyr::pivot_longer(cols = !c("test_start_newmoonnumber","newmoonnumber","species_list"),
                       names_to = c("species", "type"),
                       names_sep = "\\.") %>%
   tidyr::pivot_wider(names_from = "type",
