@@ -138,3 +138,4 @@ ggplot(data=subset(species_skill_scores,subset = model=="GAM_VAR"), aes(x=newmoo
 #  ylim(-1,1) +
   theme_minimal() +
   theme(legend.position = "none")
+

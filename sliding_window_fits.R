@@ -56,11 +56,7 @@ split_train_test <- function(data_all, gap, train_start, train_end, test_start, 
 # Priors
 
 sigma_prior <- prior(beta(10, 10), class = sigma, lb = 0.2, ub = 1)
-# The observation-level intercept is a nuisance parameter in this model that we
-# don't really need (and cannot adequately estimate anyway).
-# At present there is no way to drop this term using mvgam, but we can
-# heavily regularize it to zero with a strong prior
-intercept_prior <- prior(normal(0, 0.001), class = Intercept)
+
 ndvi_random_slopes_prior <- prior(
   inv_gamma(2.3693353, 0.7311319),
   class = sigma_raw_trend
@@ -68,9 +64,9 @@ ndvi_random_slopes_prior <- prior(
 # AR model prior in Clark et al. 2025 https://github.com/nicholasjclark/portal_VAR/blob/main/2.%20models.R
 ar_sp_intercept_prior <- prior(std_normal(), class = b)
 
-ar_priors <- c(sigma_prior, intercept_prior, ar_sp_intercept_prior)
-gam_ar_priors <- c(sigma_prior, intercept_prior, ndvi_random_slopes_prior)
-gam_var_priors <- c(sigma_prior, intercept_prior, ndvi_random_slopes_prior)
+ar_priors <- c(sigma_prior)
+gam_ar_priors <- c(sigma_prior, ndvi_random_slopes_prior)
+gam_var_priors <- c(sigma_prior, ndvi_random_slopes_prior)
 
 trend_formula_PP = ~ s(ndvi_ma12, trend, bs = "re") +
   te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
@@ -127,24 +123,24 @@ for (i in initial) { #seq_along(train_starts)
   }
 
   baseline_model <- mvgam(
-    formula = y ~ series,
+    formula = y ~ -1 + series, #removing global intercept and allowing species-specific intercepts
     data = data_train,
     newdata = data_test,
     family = poisson(),
     priors = ar_priors,
-    burnin = 5000,
-    samples = 10000
+    burnin = 1600,
+    samples = 1600
   )
 
   ar_model <- mvgam(
-    formula = y ~ series,
+    formula = y ~ -1 + series,
     data = data_train,
     newdata = data_test,
     family = poisson(),
     trend_model = AR(),
     priors = ar_priors,
     burnin = 5000,
-    samples = 10000
+    samples = 2000
   )
 
   gam_ar_model <- mvgam(
@@ -156,7 +152,7 @@ for (i in initial) { #seq_along(train_starts)
     trend_model = AR(),
     priors = gam_ar_priors,
     burnin = 5000,
-    samples = 10000
+    samples = 2000
   )
 
   gam_var_model <- mvgam(
@@ -168,7 +164,7 @@ for (i in initial) { #seq_along(train_starts)
     trend_model = VAR(),
     priors = gam_var_priors,
     burnin = 5000,
-    samples = 10000
+    samples = 2000
   )
 
   baseline_score <- score(forecast(baseline_model), score = "crps")
