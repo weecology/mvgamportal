@@ -63,11 +63,13 @@ fit_models = function(data,train_starts,type){
   
   sigma_prior <- prior(beta(10, 10), class = sigma, lb = 0.2, ub = 1)
   
+  #ar_intercept_prior <- prior(normal(1.5,1), class = Intercept)
+  
   # The observation-level intercept is a nuisance parameter in this model that we
   # don't really need (and cannot adequately estimate anyway).
   # At present there is no way to drop this term using mvgam, but we can
   # heavily regularize it to zero with a strong prior
-  intercept_prior <- prior(normal(0, 0.001), class = Intercept)
+  # intercept_prior <- prior(normal(0, 0.001), class = Intercept)
   
   ndvi_random_slopes_prior <- prior(
     inv_gamma(2.3693353, 0.7311319),
@@ -75,17 +77,17 @@ fit_models = function(data,train_starts,type){
   )
   
   # AR model prior in Clark et al. 2025 https://github.com/nicholasjclark/portal_VAR/blob/main/2.%20models.R
-  ar_sp_intercept_prior <- prior(std_normal(), class = b)
-  ar_priors <- c(sigma_prior, intercept_prior, ar_sp_intercept_prior)
+ # ar_sp_intercept_prior <- prior(std_normal(), class = b) # only used for non-hierarchical model
+  ar_priors <- c(sigma_prior)
   
-  gam_ar_priors <- c(sigma_prior, intercept_prior, ndvi_random_slopes_prior)
-  gam_var_priors <- c(sigma_prior, intercept_prior, ndvi_random_slopes_prior)
+  gam_ar_priors <- c(sigma_prior, ndvi_random_slopes_prior)
+  gam_var_priors <- c(sigma_prior, ndvi_random_slopes_prior)
   
   
   ## Fit models
   print(paste("start baseline model",i, sep=": "))
   baseline_model <- mvgam(
-    formula = y ~ series,
+    formula = y ~ -1 + series,
     data = data_train,
     newdata = data_test,
     family = poisson(),
@@ -124,7 +126,7 @@ fit_models = function(data,train_starts,type){
   )
   print(paste("start ar_model", i, sep=": "))
   model_ar <- mvgam(
-    formula = y ~ series,
+    formula = y ~ -1 + series,
     data = data_train,
     newdata = data_test,
     family = poisson(),

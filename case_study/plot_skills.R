@@ -12,8 +12,10 @@ p2 =  ggplot(data = filter(data, species == sp & model_type == "gam_ar_scores"),
   geom_point() + geom_line() + ggtitle("GAM AR")
 p3 = ggplot(data = filter(data, species == sp & model_type == "ar_scores"), aes(horizon, skill, color=train_batch)) + 
   geom_point() + geom_line() + ggtitle("AR")
+# p4 = ggplot(data = filter(data, species == sp & model_type == "linear_mintemp_scores"), aes(horizon, skill, color=train_batch)) + 
+#   geom_point() + geom_line() + ggtitle("Linear Mintemp")
 
-patchwork = (p1 | p2) / p3
+patchwork = (p1 | p2) / (p3)
 patchwork + plot_annotation(title = sp)
 }
 
