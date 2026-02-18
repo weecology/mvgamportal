@@ -1,4 +1,5 @@
 library(dplyr)
+install.packages("cmdstanr")
 library(cmdstanr)
 library(forecast)
 library(mvgam)

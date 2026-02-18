@@ -15,12 +15,11 @@ p3 = ggplot(data = filter(data, species == sp & model_type == "ar_scores"), aes(
 # p4 = ggplot(data = filter(data, species == sp & model_type == "linear_mintemp_scores"), aes(horizon, skill, color=train_batch)) + 
 #   geom_point() + geom_line() + ggtitle("Linear Mintemp")
 
-patchwork = (p1 | p2) / (p3)
+patchwork = (p1 | p2 | p3)
 patchwork + plot_annotation(title = sp)
 }
 
 plot_skills_by_start(skills, "DM")
-
 
 data = skills |> group_by(model_type, species, horizon) |> summarise(mean_skill = mean(skill), 
                                                                    sd_value = sd(skill))
