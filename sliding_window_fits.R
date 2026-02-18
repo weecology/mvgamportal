@@ -62,7 +62,7 @@ ndvi_random_slopes_prior <- prior(
   class = sigma_raw_trend
 )
 # AR model prior in Clark et al. 2025 https://github.com/nicholasjclark/portal_VAR/blob/main/2.%20models.R
-ar_sp_intercept_prior <- prior(std_normal(), class = b)
+# ar_sp_intercept_prior <- prior(std_normal(), class = b)
 
 ar_priors <- c(sigma_prior)
 gam_ar_priors <- c(sigma_prior, ndvi_random_slopes_prior)
