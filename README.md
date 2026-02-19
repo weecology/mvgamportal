@@ -1,1 +1,0 @@
-# mvgam-portal
