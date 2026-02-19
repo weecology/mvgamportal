@@ -123,11 +123,13 @@ for (i in initial) { #seq_along(train_starts)
   }
 
   baseline_model <- mvgam(
-    formula = y ~ -1 + series,
+    formula = y ~ -1 + series, #removing global intercept and allowing species-specific intercepts
     data = data_train,
     newdata = data_test,
     family = poisson(),
-    priors = ar_priors
+    priors = ar_priors,
+    burnin = 1600,
+    samples = 1600
   )
 
   ar_model <- mvgam(
