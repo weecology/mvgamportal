@@ -124,7 +124,7 @@ get_model_skill = function(series) {
 }
 
 ######## Executable code
-in_starts = c(363, 375, 387)
+in_starts = c(362, 374, 386)
 out_starts = c(412)
 
 

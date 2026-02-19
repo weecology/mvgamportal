@@ -39,14 +39,18 @@ split_train_test <- function(data_all, gap, train_start, train_end, test_start, 
 }
 ### Conduct forecasts
 
-
 fit_models = function(data,train_starts,type){
   train_win_width = 60
-  gap = 16
-  horizon = 7 # shortened from 13 to allow 3 train sets within regime
+  gap = 15 # modified because first test point slid to 411 due to missing data.
+           # this sets initial point at last transition date,
+           # transition start is still 396 (and begins gap window)
+           # but no data for 1 month forecast. 
+           # we may need to do a few different test set forecasts because
+           # there are missing months in post-regime test set and nothing is ideal
+  horizon = 13 # 1 sample for initial conditions + 12 forecasts
   for (i in seq_along(train_starts)){
     train_start <- train_starts[i]
-    train_stop <- train_start + 60 - 1
+    train_stop <- train_start + train_win_width - 1
     test_start <- train_stop + gap + 1
     test_stop = test_start + horizon - 1
     data_split <- split_train_test(
@@ -157,8 +161,8 @@ fit_models = function(data,train_starts,type){
 path = "./case_study/"
 data_all <- readRDS(paste(path,"data_pb_regime.rds",sep=""))
 
-in_train_starts = c(287,299,311) # starts each train set in August - same as the
-out_train_start = c(336)
+in_train_starts = c(287,299,311) # each train/test set similar months to out-regime 
+out_train_start = c(337)         # train & test start sept
 
 fit_models(data_all, in_train_starts, "in")
 fit_models(data_all, out_train_start, "out")
