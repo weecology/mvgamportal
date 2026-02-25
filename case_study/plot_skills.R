@@ -2,7 +2,7 @@ library(dplyr)
 library(ggplot2)
 library(patchwork)
 
-skills = read.csv("model_skills.csv", stringsAsFactors = FALSE)
+skills = read.csv("./case_study/model_outputs/model_skills.csv", stringsAsFactors = FALSE)
 skills$train_batch = as.factor(skills$train_batch)
 
 plot_skills_by_start = function(data, sp){
@@ -18,17 +18,24 @@ p3 = ggplot(data = filter(data, species == sp & model_type == "ar_scores"), aes(
 patchwork = (p1 | p2 | p3)
 patchwork + plot_annotation(title = sp)
 }
-
+sp = "DM"
+data1 = read.csv("./case_study/model_skills.csv", stringsAsFactors = FALSE)
+data1$train_batch = as.factor(data1$train_batch)
+p1 =  ggplot(data = filter(data1, species == sp & model_type == "gam_var_scores"), aes(horizon, skill, color=train_batch)) + 
+  geom_point() + geom_line() + ggtitle("GAM VAR")
+p2 =  ggplot(data = filter(data, species == sp & model_type == "gam_ar_scores"), aes(horizon, skill, color=train_batch)) + 
+  geom_point() + geom_line() + ggtitle("GAM AR")
+p3 = ggplot(data = filter(data, species == sp & model_type == "ar_scores"), aes(horizon, skill, color=train_batch)) + 
+  geom_point() + geom_line() + ggtitle("AR")
+patchwork = (p1 | p2 | p3)
+patchwork + plot_annotation(title = sp)
+p1
 plot_skills_by_start(skills, "DM")
 
 data = skills |> group_by(model_type, species, horizon) |> summarise(mean_skill = mean(skill), 
                                                                    sd_value = sd(skill))
-# plot_skills_by_species = 
-sp = "DM"
-ggplot(data = filter(data, species == sp), aes(horizon, mean_skill, color=model_type)) + 
-  geom_point() + geom_line() + ggtitle(sp)
-p1  
 
+# plot skill for batches by horizon - still in progress
 data = skills
 sp = "DM"
 species_gamvar = data |> filter(species == sp & model_type == "gam_var_scores")
