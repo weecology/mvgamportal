@@ -230,7 +230,7 @@ for (i in initial) { #seq_along(train_starts)
   env_distance$test_start_newmoonnumber <- test_start
   env_distance$species_list <- paste(data_split$species_list,collapse="_")
   env_distances[[i]] <- env_distance
-  
-  source("~/mvgamportal/R/skill_scores.r")
-  source("~/mvgamportal/R/forecast_plots.r", echo = TRUE)
+
+  source("./R/skill_scores.r")
+  source("./R/forecast_plots.r", echo = TRUE)
 }
