@@ -72,7 +72,7 @@ ggplot(data=overall_skill_scores, aes(x=newmoonnumber, y=skill_score, color=eval
   geom_rect(aes(xmin=396, xmax=411, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_line() +
   facet_wrap(~model, ncol = 1, scales = "free_y") +
-  ylim(-1,1) +
+#  ylim(-1,1) +
   theme_minimal() +
   theme(legend.position = "none") 
 
