@@ -69,8 +69,28 @@ weather <- weather(
 
 # NDVI not filled in Clarke et al. 2025
 ndvi <- ndvi(level = "newmoon", fill = TRUE) |>
-  filter(newmoonnumber <= max_newmoon)
+  filter(newmoonnumber <= max_newmoon) |>
+  left_join(load_datafile("Rodents/moon_dates.csv")) |>
+  mutate(year=lubridate::year(newmoondate),month=lubridate::month(newmoondate))
 min_newmoon <- min(ndvi$newmoonnumber)
+
+# Add seasonal NDVI
+ndvi_seasons <- ndvi |>
+  group_by(year) |>
+  summarise(winter_ndvi=mean(ndvi[month %in% 3:4]),
+            summer_ndvi=mean(ndvi[month %in% 7:9])) 
+
+ndvi <- ndvi |>
+  mutate(winter_ndvi = ifelse(
+    month < 5, 
+    ndvi_seasons$winter_ndvi[match(year-1, ndvi_seasons$year)], 
+    ndvi_seasons$winter_ndvi[match(year, ndvi_seasons$year)]
+  ),
+  summer_ndvi = ifelse(
+    month < 10, 
+    ndvi_seasons$summer_ndvi[match(year-1, ndvi_seasons$year)], 
+    ndvi_seasons$summer_ndvi[match(year, ndvi_seasons$year)]
+  ))
 
 # Different from Clarke et al. 2025 we are scaling the ma12 of ndvi not
 # the raw ndvi which should give us better values for back transforming
@@ -100,6 +120,9 @@ covars <- weather |>
     maxtemp = scale(maxtemp),
     # From Pat's paper
     meantemp_lag_1 = scale(lag(meantemp, order_by = newmoonnumber)),
+    ndvi = scale(ndvi),
+    winter_ndvi = scale(winter_ndvi),
+    summer_ndvi = scale(summer_ndvi)
   ) |>
   select(
     newmoonnumber,
@@ -111,6 +134,8 @@ covars <- weather |>
     cool_precip,
     ndvi,
     ndvi_ma12,
+    winter_ndvi,
+    summer_ndvi,
     meantemp_lag_1,
     mintemp_ma3,
     maxtemp_ma3
@@ -225,7 +250,10 @@ data_heteromyid <- list(
   maxtemp_ma3 = model_dat_heteromyids$maxtemp_ma3,
   warm_precip = model_dat_heteromyids$warm_precip,
   cool_precip = model_dat_heteromyids$cool_precip,
+  ndvi = model_dat_heteromyids$ndvi,
   ndvi_ma12 = model_dat_heteromyids$ndvi_ma12,
+  winter_ndvi = model_dat_heteromyids$winter_ndvi,
+  summer_ndvi = model_dat_heteromyids$summer_ndvi,
   weights_dm = weights_dm,
   weights_do = weights_do,
   weights_ds = weights_ds,
