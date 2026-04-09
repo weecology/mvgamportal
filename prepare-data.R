@@ -41,14 +41,14 @@ rodent_data <- summarize_rodent_data(
   quiet = FALSE
 )
 
-# Keep species present in >=30% of sampling periods
+# Keep species present in >=29% of sampling periods
 target_species <- rodent_data |>
   select(-c(censusdate, period, nplots, ntraps)) |>
   group_by(newmoonnumber, species) |>
   summarise(abundance = sum(abundance, na.rm = TRUE)) |>
   group_by(species) |>
   summarise(occupancy = sum(abundance > 0) / max(newmoonnumber)) |>
-  filter(occupancy >= 0.30) |>
+  filter(occupancy >= 0.29) |>
   select(species)
 
 # In comparison to Clarke et al. 2025
