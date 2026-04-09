@@ -212,9 +212,10 @@ saveRDS(data_all, file = "data_all.rds")
 
 model_dat_pb_regime <- model_dat |>
   filter(!(series %in% c("PE","RM","DS")))
+filter_indices <- as.numeric(setdiff(rownames(model_dat), rownames(model_dat_pb_regime)))
 
 data_pb_regime <- list(
-  lag = lag,
+  lag = lag[-filter_indices, , drop = FALSE],
   meantemp = model_dat_pb_regime$meantemp,
   meantemp_lag_1 = model_dat_pb_regime$meantemp_lag_1,
   mintemp = as.matrix(select(model_dat_pb_regime, mintemp_lag_1:mintemp_lag_6)),
@@ -224,11 +225,11 @@ data_pb_regime <- list(
   warm_precip = model_dat_pb_regime$warm_precip,
   cool_precip = model_dat_pb_regime$cool_precip,
   ndvi_ma12 = model_dat_pb_regime$ndvi_ma12,
-  weights_dm = weights_dm,
-  weights_do = weights_do,
-  weights_pb = weights_pb,
-  weights_pf = weights_pf,
-  weights_pp = weights_pp,
+  weights_dm = weights_dm[-filter_indices, , drop = FALSE],
+  weights_do = weights_do[-filter_indices, , drop = FALSE],
+  weights_pb = weights_pb[-filter_indices, , drop = FALSE],
+  weights_pf = weights_pf[-filter_indices, , drop = FALSE],
+  weights_pp = weights_pp[-filter_indices, , drop = FALSE],
   y = model_dat_pb_regime$y,
   series = droplevels(model_dat_pb_regime$series),
   time = model_dat_pb_regime$time,
@@ -239,9 +240,10 @@ saveRDS(data_pb_regime, file = "data_pb_regime.rds")
 
 model_dat_heteromyids <- model_dat |>
   filter(!(series %in% c("PE","RM")))
+filter_indices2 <- as.numeric(setdiff(rownames(model_dat), rownames(model_dat_heteromyids)))
 
 data_heteromyid <- list(
-  lag = lag,
+  lag = lag[-filter_indices2, , drop = FALSE],
   meantemp = model_dat_heteromyids$meantemp,
   meantemp_lag_1 = model_dat_heteromyids$meantemp_lag_1,
   mintemp = as.matrix(select(model_dat_heteromyids, mintemp_lag_1:mintemp_lag_6)),
@@ -254,12 +256,12 @@ data_heteromyid <- list(
   ndvi_ma12 = model_dat_heteromyids$ndvi_ma12,
   winter_ndvi = model_dat_heteromyids$winter_ndvi,
   summer_ndvi = model_dat_heteromyids$summer_ndvi,
-  weights_dm = weights_dm,
-  weights_do = weights_do,
-  weights_ds = weights_ds,
-  weights_pb = weights_pb,
-  weights_pf = weights_pf,
-  weights_pp = weights_pp,
+  weights_dm = weights_dm[-filter_indices2, , drop = FALSE],
+  weights_do = weights_do[-filter_indices2, , drop = FALSE],
+  weights_ds = weights_ds[-filter_indices2, , drop = FALSE],
+  weights_pb = weights_pb[-filter_indices2, , drop = FALSE],
+  weights_pf = weights_pf[-filter_indices2, , drop = FALSE],
+  weights_pp = weights_pp[-filter_indices2, , drop = FALSE],
   y = model_dat_heteromyids$y,
   series = droplevels(model_dat_heteromyids$series),
   time = model_dat_heteromyids$time,
