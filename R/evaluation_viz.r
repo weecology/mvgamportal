@@ -103,7 +103,7 @@ ggplot(data=pb_skill_scores, aes(x=newmoonnumber, y=skill_score, color=eval_hori
   theme_minimal() +
   theme(legend.position = "none")
 
-ggplot(data=do_skill_scores, aes(x=newmoonnumber, y=score, color=eval_horizon)) +
+ggplot(data=do_skill_scores, aes(x=newmoonnumber, y=skill_score, color=eval_horizon)) +
   geom_rect(aes(xmin=140, xmax=230, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=263, xmax=278, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=396, xmax=411, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
