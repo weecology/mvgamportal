@@ -8,7 +8,7 @@ p3<-tryCatch({plot(forecast(model), series=3)}, error = function(e) {message("An
 p4<-tryCatch({if(length(species_list)>3) {plot(forecast(model), series=4)} else {NULL}}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
 p5<-tryCatch({if(length(species_list)>4) {plot(forecast(model), series=5)} else {NULL}}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
 p6<-tryCatch({if(length(species_list)>5) {plot(forecast(model), series=6)} else {NULL}}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
-p7<-ggplot(skill_scores, aes(x=eval_horizon,y=skill_score,color=species)) + geom_point() + theme_minimal()
+p7<-ggplot(skill_scores, aes(x=eval_horizon,y=score,color=species)) + geom_point() + theme_minimal()
 p8<-mcmc_plot(model, type = 'rhat_hist')
 topleft<-plot_grid(p1,p2,p3,p4)
 top2rows<-plot_grid(topleft,p7,rel_widths = c(.67,.33))
@@ -16,6 +16,9 @@ bottomrow<-plot_grid(p5,p6,p8,nrow=1)
 plot_grid(top2rows,bottomrow,ncol=1,nrow=2,rel_heights = c(.67,.33))
 }
 
+png(paste0("figures/baseline_",target,".png"), width = 1500, height = 1000) 
+forecast_plot(baseline_model,"Baseline",baseline,data_split$species_list,target)
+dev.off()
 
 png(paste0("figures/ar_",target,".png"), width = 1500, height = 1000) 
 forecast_plot(ar_model,"AR",ar,data_split$species_list,target)
@@ -50,3 +53,5 @@ dev.off()
 #   regex=TRUE,
 #   type = "areas"
 # )
+#
+# mcmc_plot(gam_ar_model, type = 'intervals')
