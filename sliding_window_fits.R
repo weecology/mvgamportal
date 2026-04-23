@@ -266,3 +266,13 @@ for (i in initial) { #seq_along(train_starts)
   source("R/skill_scores.r")
   source("R/forecast_plots.r", echo = TRUE)
 }
+
+saveRDS(baseline_scores, "baseline_scores.rds")
+saveRDS(ar_scores, "ar_scores.rds")
+saveRDS(gam_ar_scores, "gam_ar_scores.rds")
+saveRDS(gam_var_scores, "gam_var_scores.rds")
+saveRDS(simple_scores, "simple_scores.rds")
+saveRDS(ar_summaries, "ar_summaries.rds")
+saveRDS(gam_ar_summaries, "gam_ar_summaries.rds")
+saveRDS(gam_var_summaries, "gam_var_summaries.rds")
+saveRDS(simple_summaries, "simple_summaries.rds")
