@@ -32,20 +32,25 @@ png(paste0("figures/gamvar_",target,".png"), width = 1500, height = 1000)
 forecast_plot(gam_var_model,"GAM VAR",gam_var,data_split$species_list,target)
 dev.off()
 
-png(paste0("figures/ar_trace_",target,".png"), width = 1500, height = 1500) 
-mcmc_plot(ar_model, type = 'trace')  
+png(paste0("figures/simple_",target,".png"), width = 1500, height = 1000)
+forecast_plot(simple_model,"SIMPLE",simple,data_split$species_list,target)
 dev.off()
 
-png(paste0("figures/gamar_trace_",target,".png"), width = 1500, height = 1500) 
+png(paste0("figures/ar_trace_",target,".png"), width = 1500, height = 1500)
+mcmc_plot(ar_model, type = 'trace')
+dev.off()
+
+png(paste0("figures/gamar_trace_",target,".png"), width = 1500, height = 1500)
 tryCatch({mcmc_plot(gam_ar_model, type = 'trace')}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
 dev.off()
 
-png(paste0("figures/gamvar_trace_",target,".png"), width = 2000, height = 2000) 
-tryCatch({mcmc_plot(gam_var_model, type = 'trace', variable = 'trend_params')}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)}) 
+png(paste0("figures/gamvar_trace_",target,".png"), width = 2000, height = 2000)
+tryCatch({mcmc_plot(gam_var_model, type = 'trace', variable = 'trend_params')}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
 dev.off()
 
-
-
+png(paste0("figures/simple_trace_",target,".png"), width = 1500, height = 1500)
+tryCatch({mcmc_plot(simple_model, type = 'trace')}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
+dev.off()
 
 # mcmc_plot(
 #   object = gam_var_model,
