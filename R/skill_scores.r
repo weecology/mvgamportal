@@ -47,7 +47,7 @@ gam_var <- as.data.frame(gam_var_score) %>%
   mutate(skill_score = 1 - score/baseline_score,
          model = "GAM_VAR")
 
-simple_score <- as.data.frame(simple_score) %>%
+simple <- as.data.frame(simple_score) %>%
   mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
   select(-contains("score_type"),-c("rhat","prhat_high","n_divergences")) %>%
   tidyr::pivot_longer(cols = !c("test_start_newmoonnumber","newmoonnumber","species_list"),
