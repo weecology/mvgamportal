@@ -89,11 +89,13 @@ baseline_scores <- vector(mode = "list", length = length(train_starts))
 ar_scores <- vector(mode = "list", length = length(train_starts))
 gam_ar_scores <- vector(mode = "list", length = length(train_starts))
 gam_var_scores <- vector(mode = "list", length = length(train_starts))
+simple_scores <- vector(mode = "list", length = length(train_starts))
 
 baseline_summaries <- vector(mode = "list", length = length(train_starts))
 ar_summaries <- vector(mode = "list", length = length(train_starts))
 gam_ar_summaries <- vector(mode = "list", length = length(train_starts))
 gam_var_summaries <- vector(mode = "list", length = length(train_starts))
+simple_summaries <- vector(mode = "list", length = length(train_starts))
 env_distances <- vector(mode = "list", length = length(train_starts))
 
 targets = c(158,180,200,220,240,248,260,280,285,300,320,340,360,380,400,420,428,440,460,480)
@@ -169,6 +171,18 @@ for (i in initial) { #seq_along(train_starts)
     control = list(adapt_delta = 0.95)
   )
 
+  simple_model <- mvgam(
+    formula = y ~ -1,
+    trend_formula = ~ te(mintemp_lag_0, delta_mintemp, by = trend, k = 4, bs = "sz") +
+      s(summer_ndvi, by = trend, k = 4) +
+      s(winter_ndvi, by = trend, k = 4),
+   data = data_train,
+   newdata = data_test,
+   family = poisson(),
+   trend_model = AR(),
+   noncentred = TRUE
+ )
+
   baseline_score <- score(forecast(baseline_model), score = "crps")
   baseline_score$test_start_newmoonnumber <- test_start
   baseline_score$species_list <- paste(data_split$species_list,collapse="_")
@@ -224,13 +238,37 @@ for (i in initial) { #seq_along(train_starts)
   gam_var_summary$test_start_newmoonnumber <- test_start
   gam_var_summary$species_list <- paste(data_split$species_list,collapse="_")
   gam_var_summaries[[i]] <- gam_var_summary
-  
+
+  simple_score <- score(forecast(simple_model), score = "crps")
+  simple_score$test_start_newmoonnumber <- test_start
+  simple_score$species_list <- paste(data_split$species_list,collapse="_")
+  simple_score$rhat <- mean(rhat(simple_model),na.rm=TRUE)
+  simple_score$prhat_high <- mean(rhat(simple_model)>1.05,na.rm=TRUE)
+  simple_score$n_divergences <- sum(sapply(
+    rstan::get_sampler_params(simple_model$model_output, inc_warmup = FALSE),
+    function(x) sum(x[, 'divergent__'])))
+  simple_scores[[i]] <- simple_score
+  simple_summary <- summary(simple_model)
+  simple_summary$test_start_newmoonnumber <- test_start
+  simple_summary$species_list <- paste(data_split$species_list,collapse="_")
+  simple_summaries[[i]] <- simple_summary
+
   env_distance <- data.frame(ndvi=hellinger(data_train$ndvi_ma12, data_test$ndvi_ma12),
                              mintemp=hellinger(data_train$mintemp, data_test$mintemp))
   env_distance$test_start_newmoonnumber <- test_start
   env_distance$species_list <- paste(data_split$species_list,collapse="_")
   env_distances[[i]] <- env_distance
-  
-  source("~/mvgamportal/R/skill_scores.r")
-  source("~/mvgamportal/R/forecast_plots.r", echo = TRUE)
+
+  source("R/skill_scores.r")
+  source("R/forecast_plots.r", echo = TRUE)
 }
+
+saveRDS(baseline_scores, "baseline_scores.rds")
+saveRDS(ar_scores, "ar_scores.rds")
+saveRDS(gam_ar_scores, "gam_ar_scores.rds")
+saveRDS(gam_var_scores, "gam_var_scores.rds")
+saveRDS(simple_scores, "simple_scores.rds")
+saveRDS(ar_summaries, "ar_summaries.rds")
+saveRDS(gam_ar_summaries, "gam_ar_summaries.rds")
+saveRDS(gam_var_summaries, "gam_var_summaries.rds")
+saveRDS(simple_summaries, "simple_summaries.rds")
