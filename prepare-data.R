@@ -42,21 +42,14 @@ rodent_data <- summarize_rodent_data(
   quiet = FALSE
 )
 
-# Keep species present in >=29% of sampling periods
-target_species <- rodent_data |>
-  select(-c(censusdate, period, nplots, ntraps)) |>
-  group_by(newmoonnumber, species) |>
-  summarise(abundance = sum(abundance, na.rm = TRUE)) |>
-  group_by(species) |>
-  summarise(occupancy = sum(abundance > 0) / max(newmoonnumber)) |>
-  filter(occupancy >= 0.29) |>
-  select(species)
+# Keep species present in >=30% of sampling periods
+target_species <- c("DM", "DO", "DS", "PB", "PE", "PF", "PP", "RM")
 
 # In comparison to Clarke et al. 2025
 # we've added the correction for under sampling of controls
 rodent_data <- rodent_data |>
   filter(treatment == "control") |>
-  filter(species %in% target_species$species) |>
+  filter(species %in% target_species) |>
   mutate(species = factor(species, levels = unique(species))) |>
   mutate(abundance = as.integer(round(abundance * 4 / nplots, 0))) |>
   select(-ntraps, -nplots)
@@ -101,12 +94,12 @@ weather <- weather(
   mintemp_lag_1 = lag(mintemp),
   delta_mintemp = mintemp_lag_0 - mintemp_lag_1
  ) |>
- select(-c(mintemp_lag_0, mintemp_lag_1))
+ select(-c(mintemp_lag_0, mintemp_lag_1,newmoondate,period))
 
 # NDVI not filled in Clarke et al. 2025
 ndvi <- ndvi(level = "newmoon", fill = TRUE) |>
   filter(newmoonnumber <= max_newmoon) |>
-  left_join(moon_dates, by = join_by(newmoonnumber)) |>
+  left_join(moon_dates[,1:2], by = join_by(newmoonnumber)) |>
   mutate(year=lubridate::year(newmoondate),month=lubridate::month(newmoondate))
 min_newmoon <- min(ndvi$newmoonnumber)
 
@@ -126,13 +119,14 @@ ndvi <- ndvi |>
     month < 10, 
     ndvi_seasons$summer_ndvi[match(year-1, ndvi_seasons$year)], 
     ndvi_seasons$summer_ndvi[match(year, ndvi_seasons$year)]
-  ))
+  )) |>
+  select(-c(year,month,newmoondate))
+
 
 # Different from Clarke et al. 2025 we are scaling the ma12 of ndvi not
 # the raw ndvi which should give us better values for back transforming
 covars <- weather |>
   left_join(ndvi) |>
-  filter(newmoonnumber >= min_newmoon, newmoonnumber <= max_newmoon) |>
   mutate(
     ndvi_ma12 = scale(zoo::rollmean(
       ndvi,
@@ -189,7 +183,7 @@ covars_w_lags <- covars |>
 
 model_dat <- rodent_data |>
   right_join(covars_w_lags, by = "newmoonnumber") |>
-  drop_na(meantemp:maxtemp_lag_5) |>
+  drop_na(meantemp:maxtemp_lag_6) |>
   # add mvgam columns
   mutate(
     y = abundance,
@@ -226,6 +220,7 @@ data_all <- list(
   meantemp = model_dat$meantemp,
   meantemp_lag_1 = model_dat$meantemp_lag_1,
   mintemp = as.matrix(select(model_dat, mintemp_lag_0:mintemp_lag_5)),
+  mintemp_lag_0 = model_dat$mintemp_lag_0,
   delta_mintemp = model_dat$delta_mintemp,
   mintemp_ma3 = model_dat$mintemp_ma3,
   maxtemp = as.matrix(select(model_dat, maxtemp_lag_1:maxtemp_lag_6)),
@@ -257,8 +252,9 @@ data_pb_regime <- list(
   lag = lag[-filter_indices, , drop = FALSE],
   meantemp = model_dat_pb_regime$meantemp,
   meantemp_lag_1 = model_dat_pb_regime$meantemp_lag_1,
-  mintemp = as.matrix(select(model_dat, mintemp_lag_0:mintemp_lag_5)),
-  delta_mintemp = model_dat$delta_mintemp,
+  mintemp = as.matrix(select(model_dat_pb_regime, mintemp_lag_0:mintemp_lag_5)),
+  mintemp_lag_0 = model_dat_pb_regime$mintemp_lag_0,
+  delta_mintemp = model_dat_pb_regime$delta_mintemp,
   mintemp_ma3 = model_dat_pb_regime$mintemp_ma3,
   maxtemp = as.matrix(select(model_dat_pb_regime, maxtemp_lag_1:maxtemp_lag_6)),
   maxtemp_ma3 = model_dat_pb_regime$maxtemp_ma3,
@@ -286,8 +282,9 @@ data_heteromyid <- list(
   lag = lag[-filter_indices2, , drop = FALSE],
   meantemp = model_dat_heteromyids$meantemp,
   meantemp_lag_1 = model_dat_heteromyids$meantemp_lag_1,
-  mintemp = as.matrix(select(model_dat, mintemp_lag_0:mintemp_lag_5)),
-  delta_mintemp = model_dat$delta_mintemp,
+  mintemp = as.matrix(select(model_dat_heteromyids, mintemp_lag_0:mintemp_lag_5)),
+  mintemp_lag_0 = model_dat_heteromyids$mintemp_lag_0,
+  delta_mintemp = model_dat_heteromyids$delta_mintemp,
   mintemp_ma3 = model_dat_heteromyids$mintemp_ma3,
   maxtemp = as.matrix(select(model_dat_heteromyids, maxtemp_lag_1:maxtemp_lag_6)),
   maxtemp_ma3 = model_dat_heteromyids$maxtemp_ma3,
