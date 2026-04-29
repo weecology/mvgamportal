@@ -8,10 +8,6 @@ library(statip)
 source("R/get_regime.R")
 
 data_all <- readRDS("data_heteromyid.rds")
-data_all$mintemp_lag_0 <- data_all$mintemp[,'mintemp_lag_0'] # TODO: Move to prepare-data.R
-data_all$delta_mintemp <- data_all$mintemp[,'mintemp_lag_0'] - data_all$mintemp[,'mintemp_lag_1'] # TODO: Move to prepare-data.R
-data_all$mintemp <- data_all$mintemp[, colnames(data_all$mintemp) != "mintemp_lag_0"] # TODO: remove once above lines moved to prepare-data.R
-
 
 split_train_test <- function(data_all, gap, train_start, train_end, test_start, test_end) {
   species_list <- data.frame(newmoonnumber=data_all$newmoonnumber,series=data_all$series,y=data_all$y) |>

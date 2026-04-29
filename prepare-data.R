@@ -2,6 +2,7 @@ library(dplyr)
 library(lubridate)
 library(portalr)
 library(tidyr)
+library(slider)
 
 #' Create distributed lag matrices for environmental covariates
 #' Code modified from Clark et al. 2024
@@ -61,16 +62,50 @@ rodent_data <- rodent_data |>
   select(-ntraps, -nplots)
 max_newmoon <- max(rodent_data$newmoonnumber)
 
+moon_dates <- load_datafile("Rodents/moon_dates.csv", na.strings = c("NA")) |>
+  mutate(censusdate = as.Date(coalesce(censusdate, newmoondate)))
+
 weather <- weather(
-  level = "newmoon",
+  level = "daily",
   fill = TRUE,
-  horizon = 365
-)
+  horizon = 365) |> 
+  left_join(moon_dates, by = c("date"="censusdate")) |>
+ mutate(
+  mintemp = slide_index_dbl(
+   .x = mintemp,
+   .i = date,
+   .f = ~mean(.x, na.rm = TRUE),
+   .before = days(28)
+   ),
+  maxtemp = slide_index_dbl(
+   .x = maxtemp,
+   .i = date,
+   .f = ~mean(.x, na.rm = TRUE),
+   .before = days(28)
+   ),
+  meantemp = slide_index_dbl(
+   .x = meantemp,
+   .i = date,
+   .f = ~mean(.x, na.rm = TRUE),
+   .before = days(28)
+   ),
+  precipitation = slide_index_dbl(
+   .x = precipitation,
+   .i = date,
+   .f = ~sum(.x, na.rm = TRUE),
+   .before = days(28)
+ )) |>
+ filter(!is.na(newmoonnumber)) |>
+ mutate(
+  mintemp_lag_0 = mintemp,
+  mintemp_lag_1 = lag(mintemp),
+  delta_mintemp = mintemp_lag_0 - mintemp_lag_1
+ )
 
 # NDVI not filled in Clarke et al. 2025
 ndvi <- ndvi(level = "newmoon", fill = TRUE) |>
   filter(newmoonnumber <= max_newmoon) |>
-  left_join(load_datafile("Rodents/moon_dates.csv")) |>
+  left_join(moon_dates, by = join_by(newmoonnumber)) |>
   mutate(year=lubridate::year(newmoondate),month=lubridate::month(newmoondate))
 min_newmoon <- min(ndvi$newmoonnumber)
 
