@@ -100,7 +100,8 @@ weather <- weather(
   mintemp_lag_0 = mintemp,
   mintemp_lag_1 = lag(mintemp),
   delta_mintemp = mintemp_lag_0 - mintemp_lag_1
- )
+ ) |>
+ select(-c(mintemp_lag_0, mintemp_lag_1))
 
 # NDVI not filled in Clarke et al. 2025
 ndvi <- ndvi(level = "newmoon", fill = TRUE) |>
@@ -152,6 +153,7 @@ covars <- weather |>
       na.pad = TRUE
     )),
     mintemp = scale(mintemp),
+    delta_mintemp = scale(delta_mintemp),
     maxtemp = scale(maxtemp),
     # From Pat's paper
     meantemp_lag_1 = scale(lag(meantemp, order_by = newmoonnumber)),
@@ -163,6 +165,7 @@ covars <- weather |>
     newmoonnumber,
     meantemp,
     mintemp,
+    delta_mintemp,
     maxtemp,
     precipitation,
     warm_precip,
@@ -222,7 +225,8 @@ data_all <- list(
   lag = lag,
   meantemp = model_dat$meantemp,
   meantemp_lag_1 = model_dat$meantemp_lag_1,
-  mintemp = as.matrix(select(model_dat, mintemp_lag_1:mintemp_lag_6)),
+  mintemp = as.matrix(select(model_dat, mintemp_lag_0:mintemp_lag_5)),
+  delta_mintemp = model_dat$delta_mintemp,
   mintemp_ma3 = model_dat$mintemp_ma3,
   maxtemp = as.matrix(select(model_dat, maxtemp_lag_1:maxtemp_lag_6)),
   maxtemp_ma3 = model_dat$maxtemp_ma3,
@@ -253,7 +257,8 @@ data_pb_regime <- list(
   lag = lag[-filter_indices, , drop = FALSE],
   meantemp = model_dat_pb_regime$meantemp,
   meantemp_lag_1 = model_dat_pb_regime$meantemp_lag_1,
-  mintemp = as.matrix(select(model_dat_pb_regime, mintemp_lag_1:mintemp_lag_6)),
+  mintemp = as.matrix(select(model_dat, mintemp_lag_0:mintemp_lag_5)),
+  delta_mintemp = model_dat$delta_mintemp,
   mintemp_ma3 = model_dat_pb_regime$mintemp_ma3,
   maxtemp = as.matrix(select(model_dat_pb_regime, maxtemp_lag_1:maxtemp_lag_6)),
   maxtemp_ma3 = model_dat_pb_regime$maxtemp_ma3,
@@ -281,7 +286,8 @@ data_heteromyid <- list(
   lag = lag[-filter_indices2, , drop = FALSE],
   meantemp = model_dat_heteromyids$meantemp,
   meantemp_lag_1 = model_dat_heteromyids$meantemp_lag_1,
-  mintemp = as.matrix(select(model_dat_heteromyids, mintemp_lag_1:mintemp_lag_6)),
+  mintemp = as.matrix(select(model_dat, mintemp_lag_0:mintemp_lag_5)),
+  delta_mintemp = model_dat$delta_mintemp,
   mintemp_ma3 = model_dat_heteromyids$mintemp_ma3,
   maxtemp = as.matrix(select(model_dat_heteromyids, maxtemp_lag_1:maxtemp_lag_6)),
   maxtemp_ma3 = model_dat_heteromyids$maxtemp_ma3,
