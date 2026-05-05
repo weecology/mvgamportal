@@ -1,7 +1,7 @@
 library(ggplot2)
 library(cowplot)
 
-forecast_plot <- function(model,model_name,skill_scores,species_list,target) {
+forecast_plot <- function(model,model_name,skill_scores,species_list,test_start) {
 p1<-tryCatch({plot(forecast(model), series=1)}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
 p2<-tryCatch({plot(forecast(model), series=2)}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)}) + ggtitle(paste(model_name,target)) + theme(plot.title = element_text(hjust = 0.5))
 p3<-tryCatch({plot(forecast(model), series=3)}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
@@ -16,39 +16,39 @@ bottomrow<-plot_grid(p5,p6,p8,nrow=1)
 plot_grid(top2rows,bottomrow,ncol=1,nrow=2,rel_heights = c(.67,.33))
 }
 
-png(paste0("figures/baseline_",target,".png"), width = 1500, height = 1000) 
-forecast_plot(baseline_model,"Baseline",baseline,data_split$species_list,target)
+png(paste0("figures/baseline_",test_start,".png"), width = 1500, height = 1000)
+forecast_plot(baseline_model,"Baseline",baseline,data_split$species_list,test_start)
 dev.off()
 
-png(paste0("figures/ar_",target,".png"), width = 1500, height = 1000) 
-forecast_plot(ar_model,"AR",ar,data_split$species_list,target)
+png(paste0("figures/ar_",test_start,".png"), width = 1500, height = 1000)
+forecast_plot(ar_model,"AR",ar,data_split$species_list,test_start)
 dev.off()
 
-png(paste0("figures/gamar_",target,".png"), width = 1500, height = 1000) 
-forecast_plot(gam_ar_model,"GAM AR",gam_ar,data_split$species_list,target)
+png(paste0("figures/gamar_",test_start,".png"), width = 1500, height = 1000)
+forecast_plot(gam_ar_model,"GAM AR",gam_ar,data_split$species_list,test_start)
 dev.off()
 
-png(paste0("figures/gamvar_",target,".png"), width = 1500, height = 1000) 
-forecast_plot(gam_var_model,"GAM VAR",gam_var,data_split$species_list,target)
+png(paste0("figures/gamvar_",test_start,".png"), width = 1500, height = 1000)
+forecast_plot(gam_var_model,"GAM VAR",gam_var,data_split$species_list,test_start)
 dev.off()
 
-png(paste0("figures/simple_",target,".png"), width = 1500, height = 1000)
-forecast_plot(simple_model,"SIMPLE",simple,data_split$species_list,target)
+png(paste0("figures/simple_",test_start,".png"), width = 1500, height = 1000)
+forecast_plot(simple_model,"SIMPLE",simple,data_split$species_list,test_start)
 dev.off()
 
-png(paste0("figures/ar_trace_",target,".png"), width = 1500, height = 1500)
+png(paste0("figures/ar_trace_",test_start,".png"), width = 1500, height = 1500)
 mcmc_plot(ar_model, type = 'trace')
 dev.off()
 
-png(paste0("figures/gamar_trace_",target,".png"), width = 1500, height = 1500)
+png(paste0("figures/gamar_trace_",test_start,".png"), width = 1500, height = 1500)
 tryCatch({mcmc_plot(gam_ar_model, type = 'trace')}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
 dev.off()
 
-png(paste0("figures/gamvar_trace_",target,".png"), width = 2000, height = 2000)
+png(paste0("figures/gamvar_trace_",test_start,".png"), width = 2000, height = 2000)
 tryCatch({mcmc_plot(gam_var_model, type = 'trace', variable = 'trend_params')}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
 dev.off()
 
-png(paste0("figures/simple_trace_",target,".png"), width = 1500, height = 1500)
+png(paste0("figures/simple_trace_",test_start,".png"), width = 1500, height = 1500)
 tryCatch({mcmc_plot(simple_model, type = 'trace')}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
 dev.off()
 

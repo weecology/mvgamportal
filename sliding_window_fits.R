@@ -85,6 +85,11 @@ newmoon_max <- max(data_all$newmoonnumber)
 train_win_width <- 60
 train_starts <- newmoon_min:(newmoon_max - train_win_width - 12 + 1)
 
+# For non-full runs uncomment the lines below and specify desired
+# test starts as newmoonnumbers.
+# test_starts = seq(from = 200, to = 400, by = 20)
+# train_starts = test_starts - train_win_width
+
 baseline_scores <- vector(mode = "list", length = length(train_starts))
 ar_scores <- vector(mode = "list", length = length(train_starts))
 gam_ar_scores <- vector(mode = "list", length = length(train_starts))
@@ -98,16 +103,12 @@ gam_var_summaries <- vector(mode = "list", length = length(train_starts))
 simple_summaries <- vector(mode = "list", length = length(train_starts))
 env_distances <- vector(mode = "list", length = length(train_starts))
 
-targets = c(158,180,200,220,240,248,260,280,285,300,320,340,360,380,400,420,428,440,460,480)
-initial = targets - 60
-
-for (i in initial) { #seq_along(train_starts)
-  target = i + 60
-  train_start <- train_starts[i - 95] # remove the -95
-  print(glue("Starting training: {i}"))
-  train_end <- train_start + 60 - 1
+for (i in seq_along(train_starts)) {
+  train_start <- train_starts[i]
+  train_end <- train_start + train_win_width - 1
   test_start <- train_end + 1
   test_end <- test_start + 12 - 1
+  print(glue("Training test start {test_start} (newmoon)"))
   data_split <- split_train_test(
     data_all,
     gap = 0,
