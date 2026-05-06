@@ -1,5 +1,6 @@
 library(dplyr)
 library(ggplot2)
+library(ggpp)
 
 # load("~/Downloads/mvgam_sliding_window.RData")
 
@@ -318,19 +319,53 @@ ggplot(skill_sign_species, aes(x=model, fill=skill_sign)) +
 
 skill_binwidth <- 0.1
 skill_clamp_value <- -1 - skill_binwidth / 2
+inset_npcx <- skill_binwidth / (2 + skill_binwidth) + 0.05
 
 skill_hist_overall <- overall_skill_scores %>%
   filter(!is.na(skill_score), is.finite(skill_score), skill_score <= 1) %>%
   mutate(skill_score_clamped = pmax(skill_score, skill_clamp_value),
          pooled = skill_score < -1)
 
+get_hist_ymax <- function(x, binwidth, boundary = 0) {
+  left  <- floor((min(x)  - boundary) / binwidth) * binwidth + boundary
+  right <- ceiling((max(x) - boundary) / binwidth) * binwidth + boundary
+  breaks <- seq(left, right + binwidth, by = binwidth)
+  max(hist(x, breaks = breaks, plot = FALSE)$counts)
+}
+
+make_tail_inset <- function(d, ymax) {
+  ggplot(d, aes(x = skill_score)) +
+    annotate("rect", xmin = 0, xmax = Inf, ymin = -Inf, ymax = Inf, fill = "lightgrey", alpha = 0.6) +
+    geom_histogram(binwidth = skill_binwidth, boundary = 0, fill = "steelblue4", color = "white") +
+    coord_cartesian(ylim = c(0, ymax)) +
+    theme_minimal(base_size = 6) +
+    theme(axis.title = element_blank(),
+          axis.text = element_text(size = 5),
+          plot.background = element_rect(fill = "white", color = "grey70", linewidth = 0.3))
+}
+
+hist_ymax_overall <- skill_hist_overall %>%
+  group_by(model) %>%
+  summarise(max_count = get_hist_ymax(skill_score_clamped, skill_binwidth), .groups = "drop")
+
+tail_insets_overall <- skill_hist_overall %>%
+  group_by(model) %>%
+  group_modify(~tibble(tail_data = list(.x))) %>%
+  left_join(hist_ymax_overall, by = "model") %>%
+  mutate(inset = Map(make_tail_inset, tail_data, max_count), npcx = inset_npcx, npcy = 0.98) %>%
+  select(-tail_data, -max_count)
+
 ggplot(skill_hist_overall, aes(x=skill_score_clamped, fill=pooled)) +
+  annotate("rect", xmin = 0, xmax = Inf, ymin = -Inf, ymax = Inf, fill = "lightgrey", alpha = 0.6) +
   geom_histogram(binwidth = skill_binwidth, boundary = 0, color = "white") +
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey40") +
   scale_fill_manual(values = c(`FALSE` = "steelblue", `TRUE` = "steelblue4"),
                     labels = c(`FALSE` = "binned", `TRUE` = "pooled (< -1)")) +
+  geom_plot_npc(data = tail_insets_overall,
+                aes(npcx = npcx, npcy = npcy, label = inset),
+                hjust = 0, vjust = 1, vp.width = 0.3, vp.height = 0.35) +
   facet_wrap(~model, scales = "free_y") +
-  coord_cartesian(xlim = c(-1 - skill_binwidth, 1)) +
+  coord_cartesian(xlim = c(-1 - skill_binwidth, 1), expand = FALSE) +
   labs(x = "Skill score (values < -1 pooled)", y = "Count", fill = NULL) +
   theme_minimal()
 
@@ -339,12 +374,26 @@ skill_hist_species <- species_skill_scores %>%
   mutate(skill_score_clamped = pmax(skill_score, skill_clamp_value),
          pooled = skill_score < -1)
 
+hist_ymax_species <- skill_hist_species %>%
+  group_by(species, model) %>%
+  summarise(max_count = get_hist_ymax(skill_score_clamped, skill_binwidth), .groups = "drop")
+
+tail_insets_species <- skill_hist_species %>%
+  group_by(species, model) %>%
+  group_modify(~tibble(tail_data = list(.x))) %>%
+  left_join(hist_ymax_species, by = c("species", "model")) %>%
+  mutate(inset = Map(make_tail_inset, tail_data, max_count), npcx = inset_npcx, npcy = 0.98) %>%
+  select(-tail_data, -max_count)
+
 ggplot(skill_hist_species, aes(x=skill_score_clamped, fill=pooled)) +
+  annotate("rect", xmin = 0, xmax = Inf, ymin = -Inf, ymax = Inf, fill = "lightgrey", alpha = 0.6) +
   geom_histogram(binwidth = skill_binwidth, boundary = 0, color = "white") +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey40") +
   scale_fill_manual(values = c(`FALSE` = "steelblue", `TRUE` = "steelblue4"),
                     labels = c(`FALSE` = "binned", `TRUE` = "pooled (< -1)")) +
+  geom_plot_npc(data = tail_insets_species,
+                aes(npcx = npcx, npcy = npcy, label = inset),
+                hjust = 0, vjust = 1, vp.width = 0.3, vp.height = 0.35) +
   facet_grid(species ~ model, scales = "free_y") +
-  coord_cartesian(xlim = c(-1 - skill_binwidth, 1)) +
+  coord_cartesian(xlim = c(-1 - skill_binwidth, 1), expand = FALSE) +
   labs(x = "Skill score (values < -1 pooled)", y = "Count", fill = NULL) +
   theme_minimal()
