@@ -130,7 +130,9 @@ for (i in seq_along(train_starts)) {
     formula = y ~ -1 + series, #remove global intercept and allow species-specific intercepts
     data = data_train,
     newdata = data_test,
-    family = poisson()         
+    family = poisson(),
+    silent = 2,
+    refresh = 0
     #remove prior specification, since it is only sigma and not used
     #solves Warning message: no match found in model_file for parameter: sigma  
   )
@@ -143,7 +145,9 @@ for (i in seq_along(train_starts)) {
     trend_model = AR(),
     priors = ar_priors,
     burnin = 5000,
-    samples = 2000
+    samples = 2000,
+    silent = 2,
+    refresh = 0
   )
 
   gam_ar_model <- mvgam(
@@ -156,6 +160,8 @@ for (i in seq_along(train_starts)) {
     priors = gam_ar_priors,
     burnin = 5000,
     samples = 2000,
+    silent = 2,
+    refresh = 0,
     control = list(adapt_delta = 0.95) # Increase from default 0.8 to decrease divergences
   )
 
@@ -169,6 +175,8 @@ for (i in seq_along(train_starts)) {
     priors = gam_var_priors,
     burnin = 5000,
     samples = 2000,
+    silent = 2,
+    refresh = 0,
     control = list(adapt_delta = 0.95)
   )
 
