@@ -5,12 +5,13 @@ library(mvgam)
 library(portalr)
 library(glue)
 library(statip)
-library(parallel)
+library(furrr)
 source("R/get_regime.R")
 
 # Workers for the outer (train_start) loop. Each worker also spawns
 # cmdstanr chains, so total cores in use ~= n_workers * 4.
 n_workers <- as.integer(Sys.getenv("MVGAM_N_WORKERS", unset = "4"))
+plan(multicore, workers = n_workers)
 
 data_all <- readRDS("data_heteromyid.rds")
 
@@ -271,31 +272,32 @@ run_window <- function(train_start) {
   )
 }
 
-results <- mclapply(
+safe_run_window <- purrr::safely(run_window)
+results <- future_map(
   train_starts,
-  run_window,
-  mc.cores = n_workers,
-  mc.preschedule = FALSE
+  safe_run_window,
+  .options = furrr_options(seed = TRUE),
+  .progress = TRUE
 )
 
-# mclapply returns "try-error" elements on worker failure; surface them.
-errored <- vapply(results, inherits, logical(1), what = "try-error")
+errored <- purrr::map_lgl(results, ~ !is.null(.x$error))
 if (any(errored)) {
   warning(glue("{sum(errored)} window(s) failed: train_starts {paste(train_starts[errored], collapse=', ')}"))
 }
+results <- purrr::map(results, "result")
 
-baseline_scores <- lapply(results, `[[`, "baseline_score")
-ar_scores <- lapply(results, `[[`, "ar_score")
-gam_ar_scores <- lapply(results, `[[`, "gam_ar_score")
-gam_var_scores <- lapply(results, `[[`, "gam_var_score")
-simple_scores <- lapply(results, `[[`, "simple_score")
+baseline_scores <- purrr::map(results, "baseline_score")
+ar_scores <- purrr::map(results, "ar_score")
+gam_ar_scores <- purrr::map(results, "gam_ar_score")
+gam_var_scores <- purrr::map(results, "gam_var_score")
+simple_scores <- purrr::map(results, "simple_score")
 
-baseline_summaries <- lapply(results, `[[`, "baseline_summary")
-ar_summaries <- lapply(results, `[[`, "ar_summary")
-gam_ar_summaries <- lapply(results, `[[`, "gam_ar_summary")
-gam_var_summaries <- lapply(results, `[[`, "gam_var_summary")
-simple_summaries <- lapply(results, `[[`, "simple_summary")
-env_distances <- lapply(results, `[[`, "env_distance")
+baseline_summaries <- purrr::map(results, "baseline_summary")
+ar_summaries <- purrr::map(results, "ar_summary")
+gam_ar_summaries <- purrr::map(results, "gam_ar_summary")
+gam_var_summaries <- purrr::map(results, "gam_var_summary")
+simple_summaries <- purrr::map(results, "simple_summary")
+env_distances <- purrr::map(results, "env_distance")
 
 saveRDS(baseline_scores, "baseline_scores.rds")
 saveRDS(ar_scores, "ar_scores.rds")
