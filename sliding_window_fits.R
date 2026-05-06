@@ -257,17 +257,16 @@ run_window <- function(train_start) {
   source("R/skill_scores.r", local = TRUE)
   source("R/forecast_plots.r", local = TRUE, echo = TRUE)
 
+  baseline_summary$model <- "BASELINE"
+  ar_summary$model       <- "AR"
+  gam_ar_summary$model   <- "GAM_AR"
+  gam_var_summary$model  <- "GAM_VAR"
+  simple_summary$model   <- "SIMPLE"
+
   list(
-    baseline_score = baseline_score,
-    ar_score = ar_score,
-    gam_ar_score = gam_ar_score,
-    gam_var_score = gam_var_score,
-    simple_score = simple_score,
-    baseline_summary = baseline_summary,
-    ar_summary = ar_summary,
-    gam_ar_summary = gam_ar_summary,
-    gam_var_summary = gam_var_summary,
-    simple_summary = simple_summary,
+    scores = scores,
+    summaries = list(baseline_summary, ar_summary, gam_ar_summary,
+                     gam_var_summary, simple_summary),
     env_distance = env_distance
   )
 }
@@ -286,37 +285,14 @@ if (any(errored)) {
 }
 results <- purrr::map(results, "result")
 
-baseline_scores <- purrr::map(results, "baseline_score")
-ar_scores <- purrr::map(results, "ar_score")
-gam_ar_scores <- purrr::map(results, "gam_ar_score")
-gam_var_scores <- purrr::map(results, "gam_var_score")
-simple_scores <- purrr::map(results, "simple_score")
-
-baseline_summaries <- purrr::map(results, "baseline_summary")
-ar_summaries <- purrr::map(results, "ar_summary")
-gam_ar_summaries <- purrr::map(results, "gam_ar_summary")
-gam_var_summaries <- purrr::map(results, "gam_var_summary")
-simple_summaries <- purrr::map(results, "simple_summary")
+scores <- purrr::map_dfr(results, "scores")
+summaries <- purrr::flatten(purrr::map(results, "summaries"))
 env_distances <- purrr::map(results, "env_distance")
 
-saveRDS(baseline_scores, "baseline_scores.rds")
-saveRDS(ar_scores, "ar_scores.rds")
-saveRDS(gam_ar_scores, "gam_ar_scores.rds")
-saveRDS(gam_var_scores, "gam_var_scores.rds")
-saveRDS(simple_scores, "simple_scores.rds")
-saveRDS(ar_summaries, "ar_summaries.rds")
-saveRDS(gam_ar_summaries, "gam_ar_summaries.rds")
-saveRDS(gam_var_summaries, "gam_var_summaries.rds")
-saveRDS(simple_summaries, "simple_summaries.rds")
+saveRDS(scores, "scores.rds")
+saveRDS(summaries, "summaries.rds")
 saveRDS(env_distances, "env_distances.rds")
 
-# baseline_scores <- readRDS("baseline_scores.rds")
-# ar_scores <- readRDS("ar_scores.rds")
-# gam_ar_scores <- readRDS("gam_ar_scores.rds")
-# gam_var_scores <- readRDS("gam_var_scores.rds")
-# simple_scores <- readRDS("simple_scores.rds")
-# ar_summaries <- readRDS("ar_summaries.rds")
-# gam_ar_summaries <- readRDS("gam_ar_summaries.rds")
-# gam_var_summaries <- readRDS("gam_var_summaries.rds")
-# simple_summaries <- readRDS("simple_summaries.rds")
+# scores <- readRDS("scores.rds")
+# summaries <- readRDS("summaries.rds")
 # env_distances <- readRDS("env_distances.rds")
