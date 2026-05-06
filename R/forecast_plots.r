@@ -3,7 +3,7 @@ library(cowplot)
 
 forecast_plot <- function(model,model_name,skill_scores,species_list,test_start) {
 p1<-tryCatch({plot(forecast(model), series=1)}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
-p2<-tryCatch({plot(forecast(model), series=2)}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)}) + ggtitle(paste(model_name,target)) + theme(plot.title = element_text(hjust = 0.5))
+p2<-tryCatch({plot(forecast(model), series=2)}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)}) + ggtitle(paste(model_name,test_start)) + theme(plot.title = element_text(hjust = 0.5))
 p3<-tryCatch({plot(forecast(model), series=3)}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
 p4<-tryCatch({if(length(species_list)>3) {plot(forecast(model), series=4)} else {NULL}}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
 p5<-tryCatch({if(length(species_list)>4) {plot(forecast(model), series=5)} else {NULL}}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})

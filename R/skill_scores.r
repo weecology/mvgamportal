@@ -19,7 +19,7 @@ ar <- as.data.frame(ar_score) %>%
   left_join(baseline, by = join_by(test_start_newmoonnumber, newmoonnumber, species, eval_horizon)) %>%
   rename(score = score.x, baseline_score = score.y) %>%
   mutate(skill_score = 1 - score/baseline_score,
-         model = "AR") 
+         model = "AR")
 
 gam_ar <- as.data.frame(gam_ar_score) %>%
   mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
@@ -32,7 +32,7 @@ gam_ar <- as.data.frame(gam_ar_score) %>%
   left_join(baseline, by = join_by(test_start_newmoonnumber, newmoonnumber, species, eval_horizon)) %>%
   rename(score = score.x, baseline_score = score.y) %>%
   mutate(skill_score = 1 - score/baseline_score,
-         model = "GAM_AR") 
+         model = "GAM_AR")
 
 gam_var <- as.data.frame(gam_var_score) %>%
   mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
