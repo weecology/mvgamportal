@@ -189,7 +189,12 @@ for (i in seq_along(train_starts)) {
    newdata = data_test,
    family = poisson(),
    trend_model = AR(),
-   noncentred = TRUE
+   noncentred = TRUE,
+   burnin = 5000,
+   samples = 2000,
+   silent = 2,
+   refresh = 0,
+   control = list(adapt_delta = 0.95) # Increase from default 0.8 to decrease divergences
  )
 
   baseline_score <- score(forecast(baseline_model), score = "crps")
