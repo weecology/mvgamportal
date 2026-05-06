@@ -1,76 +1,15 @@
 library(dplyr)
 library(ggplot2)
+library(dplyr)
 library(ggpp)
 
-# load("~/Downloads/mvgam_sliding_window.RData")
-
-baseline_dfs <- lapply(baseline_scores, data.frame, stringsAsFactors = FALSE)
-baseline <- bind_rows(baseline_dfs) %>%
-  mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
-  select(-contains("score_type")) %>%
-  tidyr::pivot_longer(cols = !c("test_start_newmoonnumber","newmoonnumber","species_list","rhat","prhat_high","n_divergences"),
-                      names_to = c("species", "type"),
-                      names_sep = "\\.") %>%
-  tidyr::pivot_wider(names_from = "type",
-                     values_from = "value") %>%
-  select(test_start_newmoonnumber, newmoonnumber, species, baseline_score=score)
-
-ar_dfs <- lapply(ar_scores, data.frame, stringsAsFactors = FALSE)
-ar <- dplyr::bind_rows(ar_dfs) %>%
-  mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
-  select(-contains("score_type")) %>%
-  tidyr::pivot_longer(cols = !c("test_start_newmoonnumber","newmoonnumber","species_list","rhat","prhat_high","n_divergences"),
-                      names_to = c("species", "type"),
-                      names_sep = "\\.") %>%
-  tidyr::pivot_wider(names_from = "type",
-                     values_from = "value") %>%
-  left_join(baseline, by = join_by(test_start_newmoonnumber, newmoonnumber, species)) %>%
-  mutate(skill_score = 1 - score/baseline_score,
-         model = "AR")
-
-gam_ar_dfs <- lapply(gam_ar_scores, data.frame, stringsAsFactors = FALSE)
-gam_ar <- dplyr::bind_rows(gam_ar_dfs) %>%
-  mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
-  select(-contains("score_type")) %>%
-  tidyr::pivot_longer(cols = !c("test_start_newmoonnumber","newmoonnumber","species_list","rhat","prhat_high","n_divergences"),
-                      names_to = c("species", "type"),
-                      names_sep = "\\.") %>%
-  tidyr::pivot_wider(names_from = "type",
-                     values_from = "value") %>%
-  left_join(baseline, by = join_by(test_start_newmoonnumber, newmoonnumber, species)) %>%
-  mutate(skill_score = 1 - score/baseline_score,
-         model = "GAM_AR")
-
-gam_var_dfs <- lapply(gam_var_scores, data.frame, stringsAsFactors = FALSE)
-gam_var <- dplyr::bind_rows(gam_var_dfs) %>%
-  mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
-  select(-contains("score_type")) %>%
-  tidyr::pivot_longer(cols = !c("test_start_newmoonnumber","newmoonnumber","species_list","rhat","prhat_high","n_divergences"),
-                      names_to = c("species", "type"),
-                      names_sep = "\\.") %>%
-  tidyr::pivot_wider(names_from = "type",
-                     values_from = "value") %>%
-  left_join(baseline, by = join_by(test_start_newmoonnumber, newmoonnumber, species)) %>%
-  mutate(skill_score = 1 - score/baseline_score,
-         model = "GAM_VAR")
-
-simple_dfs <- lapply(simple_scores, data.frame, stringsAsFactors = FALSE)
-simple <- dplyr::bind_rows(simple_dfs) %>%
-  mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
-  select(-contains("score_type")) %>%
-  tidyr::pivot_longer(cols = !c("test_start_newmoonnumber","newmoonnumber","species_list","rhat","prhat_high","n_divergences"),
-                      names_to = c("species", "type"),
-                      names_sep = "\\.") %>%
-  tidyr::pivot_wider(names_from = "type",
-                     values_from = "value") %>%
-  left_join(baseline, by = join_by(test_start_newmoonnumber, newmoonnumber, species)) %>%
-  mutate(skill_score = 1 - score/baseline_score,
-         model = "SIMPLE")
+# scores <- readRDS("scores.rds")
+# env_distances <- readRDS("env_distances.rds")
 
 env_dfs <- lapply(env_distances, data.frame, stringsAsFactors = FALSE)
 environment <- bind_rows(env_dfs)
 
-skill_scores <- rbind(ar,gam_ar,gam_var,simple)
+skill_scores <- scores %>% filter(model != "BASELINE")
 overall_skill_scores = skill_scores %>%
                        filter(species=="all_series")
 species_skill_scores = skill_scores %>%

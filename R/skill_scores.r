@@ -1,61 +1,32 @@
-baseline <- as.data.frame(baseline_score) %>%
-  mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
-  select(-contains("score_type"),-c("rhat","prhat_high","n_divergences")) %>%
-  tidyr::pivot_longer(cols = !c("test_start_newmoonnumber","newmoonnumber","species_list"),
-                      names_to = c("species", "type"),
-                      names_sep = "\\.") %>%
-  tidyr::pivot_wider(names_from = "type",
-                     values_from = "value") %>%
-  select(test_start_newmoonnumber, newmoonnumber, species, score,eval_horizon)
+library(dplyr)
+library(tidyr)
 
-ar <- as.data.frame(ar_score) %>%
-  mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
-  select(-contains("score_type"),-c("rhat","prhat_high","n_divergences")) %>%
-  tidyr::pivot_longer(cols = !c("test_start_newmoonnumber","newmoonnumber","species_list"),
-                      names_to = c("species", "type"),
-                      names_sep = "\\.") %>%
-  tidyr::pivot_wider(names_from = "type",
-                     values_from = "value") %>%
-  left_join(baseline, by = join_by(test_start_newmoonnumber, newmoonnumber, species, eval_horizon)) %>%
-  rename(score = score.x, baseline_score = score.y) %>%
-  mutate(skill_score = 1 - score/baseline_score,
-         model = "AR")
+tidy_score <- function(score_df, model_name) {
+  as.data.frame(score_df) %>%
+    mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
+    select(-contains("score_type")) %>%
+    pivot_longer(cols = !c("test_start_newmoonnumber", "newmoonnumber",
+                           "species_list", "rhat", "prhat_high", "n_divergences"),
+                 names_to = c("species", "type"),
+                 names_sep = "\\.") %>%
+    pivot_wider(names_from = "type", values_from = "value") %>%
+    mutate(model = model_name)
+}
 
-gam_ar <- as.data.frame(gam_ar_score) %>%
-  mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
-  select(-contains("score_type"),-c("rhat","prhat_high","n_divergences")) %>%
-  tidyr::pivot_longer(cols = !c("test_start_newmoonnumber","newmoonnumber","species_list"),
-                      names_to = c("species", "type"),
-                      names_sep = "\\.") %>%
-  tidyr::pivot_wider(names_from = "type",
-                     values_from = "value") %>%
-  left_join(baseline, by = join_by(test_start_newmoonnumber, newmoonnumber, species, eval_horizon)) %>%
-  rename(score = score.x, baseline_score = score.y) %>%
-  mutate(skill_score = 1 - score/baseline_score,
-         model = "GAM_AR")
+scores <- bind_rows(
+  tidy_score(baseline_score, "BASELINE"),
+  tidy_score(ar_score,       "AR"),
+  tidy_score(gam_ar_score,   "GAM_AR"),
+  tidy_score(gam_var_score,  "GAM_VAR"),
+  tidy_score(simple_score,   "SIMPLE")
+)
 
-gam_var <- as.data.frame(gam_var_score) %>%
-  mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
-  select(-contains("score_type"),-c("rhat","prhat_high","n_divergences")) %>%
-  tidyr::pivot_longer(cols = !c("test_start_newmoonnumber","newmoonnumber","species_list"),
-                      names_to = c("species", "type"),
-                      names_sep = "\\.") %>%
-  tidyr::pivot_wider(names_from = "type",
-                     values_from = "value") %>%
-  left_join(baseline, by = join_by(test_start_newmoonnumber, newmoonnumber, species, eval_horizon)) %>%
-  rename(score = score.x, baseline_score = score.y) %>%
-  mutate(skill_score = 1 - score/baseline_score,
-         model = "GAM_VAR")
+baseline_ref <- scores %>%
+  filter(model == "BASELINE") %>%
+  select(test_start_newmoonnumber, newmoonnumber, species, eval_horizon,
+         baseline_score = score)
 
-simple <- as.data.frame(simple_score) %>%
-  mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
-  select(-contains("score_type"),-c("rhat","prhat_high","n_divergences")) %>%
-  tidyr::pivot_longer(cols = !c("test_start_newmoonnumber","newmoonnumber","species_list"),
-                      names_to = c("species", "type"),
-                      names_sep = "\\.") %>%
-  tidyr::pivot_wider(names_from = "type",
-                     values_from = "value") %>%
-  left_join(baseline, by = join_by(test_start_newmoonnumber, newmoonnumber, species, eval_horizon)) %>%
-  rename(score = score.x, baseline_score = score.y) %>%
-  mutate(skill_score = 1 - score/baseline_score,
-         model = "SIMPLE")
+scores <- scores %>%
+  left_join(baseline_ref,
+            by = join_by(test_start_newmoonnumber, newmoonnumber, species, eval_horizon)) %>%
+  mutate(skill_score = 1 - score / baseline_score)
