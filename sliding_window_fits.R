@@ -12,7 +12,7 @@ source("R/get_regime.R")
 # cores ~= n_workers * 4. To run on HPC set MVGAM_N_WORKERS environmental
 # variable based on number of requested cores
 n_workers <- as.integer(Sys.getenv("MVGAM_N_WORKERS", unset = "8"))
-plan(multicore, workers = n_workers / 4)
+plan(multisession, workers = n_workers / 4)
 
 data_all <- readRDS("data_heteromyid.rds")
 
