@@ -8,10 +8,11 @@ library(statip)
 library(furrr)
 source("R/get_regime.R")
 
-# Workers for the outer (train_start) loop. Each worker also spawns
-# cmdstanr chains, so total cores in use ~= n_workers * 4.
-n_workers <- as.integer(Sys.getenv("MVGAM_N_WORKERS", unset = "4"))
-plan(multicore, workers = n_workers)
+# Set number of workers. Each worker spawns 4 cmdstanr chains, so total
+# cores ~= n_workers * 4. To run on HPC set MVGAM_N_WORKERS environmental
+# variable based on number of requested cores
+n_workers <- as.integer(Sys.getenv("MVGAM_N_WORKERS", unset = "8"))
+plan(multicore, workers = n_workers / 4)
 
 data_all <- readRDS("data_heteromyid.rds")
 
@@ -93,8 +94,8 @@ train_starts <- newmoon_min:(newmoon_max - train_win_width - 12 + 1)
 
 # For non-full runs uncomment the lines below and specify desired
 # test starts as newmoonnumbers.
-# test_starts = seq(from = 200, to = 400, by = 20)
-# train_starts = test_starts - train_win_width
+test_starts = c(200, 201, 202)# seq(from = 200, to = 400, by = 20)
+train_starts = test_starts - train_win_width
 
 run_window <- function(train_start) {
   train_end <- train_start + train_win_width - 1
