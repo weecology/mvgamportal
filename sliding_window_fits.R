@@ -94,8 +94,8 @@ train_starts <- newmoon_min:(newmoon_max - train_win_width - 12 + 1)
 
 # For non-full runs uncomment the lines below and specify desired
 # test starts as newmoonnumbers.
-test_starts = c(200, 201, 202)# seq(from = 200, to = 400, by = 20)
-train_starts = test_starts - train_win_width
+# test_starts = seq(from = 200, to = 400, by = 20)
+# train_starts = test_starts - train_win_width
 
 run_window <- function(train_start) {
   train_end <- train_start + train_win_width - 1
