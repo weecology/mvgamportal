@@ -276,8 +276,7 @@ safe_run_window <- purrr::safely(run_window)
 results <- future_map(
   train_starts,
   safe_run_window,
-  .options = furrr_options(seed = TRUE),
-  .progress = TRUE
+  .options = furrr_options(seed = TRUE)
 )
 
 errored <- purrr::map_lgl(results, ~ !is.null(.x$error))
