@@ -1,14 +1,14 @@
 library(ggplot2)
 library(cowplot)
 
-forecast_plot <- function(model,model_name,skill_scores,species_list,test_start) {
+forecast_plot <- function(model, model_name, model_scores, species_list, test_start) {
 p1<-tryCatch({plot(forecast(model), series=1)}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
 p2<-tryCatch({plot(forecast(model), series=2)}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)}) + ggtitle(paste(model_name,test_start)) + theme(plot.title = element_text(hjust = 0.5))
 p3<-tryCatch({plot(forecast(model), series=3)}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
 p4<-tryCatch({if(length(species_list)>3) {plot(forecast(model), series=4)} else {NULL}}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
 p5<-tryCatch({if(length(species_list)>4) {plot(forecast(model), series=5)} else {NULL}}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
 p6<-tryCatch({if(length(species_list)>5) {plot(forecast(model), series=6)} else {NULL}}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
-p7<-ggplot(skill_scores, aes(x=eval_horizon,y=score,color=species)) + geom_point() + theme_minimal()
+p7<-ggplot(model_scores, aes(x=eval_horizon,y=score,color=species)) + geom_point() + theme_minimal()
 p8<-mcmc_plot(model, type = 'rhat_hist')
 topleft<-plot_grid(p1,p2,p3,p4)
 top2rows<-plot_grid(topleft,p7,rel_widths = c(.67,.33))
@@ -17,23 +17,23 @@ plot_grid(top2rows,bottomrow,ncol=1,nrow=2,rel_heights = c(.67,.33))
 }
 
 png(paste0("figures/baseline_",test_start,".png"), width = 1500, height = 1000)
-forecast_plot(baseline_model,"Baseline",baseline,data_split$species_list,test_start)
+forecast_plot(baseline_model,"Baseline",filter(scores, model == "BASELINE"),data_split$species_list,test_start)
 dev.off()
 
 png(paste0("figures/ar_",test_start,".png"), width = 1500, height = 1000)
-forecast_plot(ar_model,"AR",ar,data_split$species_list,test_start)
+forecast_plot(ar_model,"AR",filter(scores, model == "AR"),data_split$species_list,test_start)
 dev.off()
 
 png(paste0("figures/gamar_",test_start,".png"), width = 1500, height = 1000)
-forecast_plot(gam_ar_model,"GAM AR",gam_ar,data_split$species_list,test_start)
+forecast_plot(gam_ar_model,"GAM AR",filter(scores, model == "GAM_AR"),data_split$species_list,test_start)
 dev.off()
 
 png(paste0("figures/gamvar_",test_start,".png"), width = 1500, height = 1000)
-forecast_plot(gam_var_model,"GAM VAR",gam_var,data_split$species_list,test_start)
+forecast_plot(gam_var_model,"GAM VAR",filter(scores, model == "GAM_VAR"),data_split$species_list,test_start)
 dev.off()
 
 png(paste0("figures/simple_",test_start,".png"), width = 1500, height = 1000)
-forecast_plot(simple_model,"SIMPLE",simple,data_split$species_list,test_start)
+forecast_plot(simple_model,"SIMPLE",filter(scores, model == "SIMPLE"),data_split$species_list,test_start)
 dev.off()
 
 png(paste0("figures/ar_trace_",test_start,".png"), width = 1500, height = 1500)
