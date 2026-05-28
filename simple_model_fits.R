@@ -2,6 +2,7 @@ library(dplyr)
 library(glue)
 library(statip)
 library(mvgam)
+library(dad)
 
 ### Data
 
@@ -64,7 +65,8 @@ simple_scores <- vector(mode = "list", length = length(train_starts))
 simple_summaries <- vector(mode = "list", length = length(train_starts))
 env_distances <- vector(mode = "list", length = length(train_starts))
 
-targets = c(158,180,200,220,240,248,260,280,285,300,320,340,360,380,400,420,428,440,460,480)
+#targets = c(158,180,200,220,240,248,260,280,285,300,320,340,360,380,400,420,428,440,460,480)
+targets = c(158,300,460)
 initial = targets - 60
 
 ### Fit all windows
@@ -123,8 +125,10 @@ for (i in initial) {
  simple_summary$species_list <- paste(data_split$species_list,collapse="_")
  simple_summaries[[i]] <- simple_summary
 
- env_distance <- data.frame(ndvi=hellinger(data_train$ndvi, data_test$ndvi),
-                            mintemp=hellinger(data_train$mintemp, data_test$mintemp))
+ # making environmental distance. Should discuss which variables to use
+ env_train = data.frame(ndvi=data_train$ndvi, mintemp = data_train$mintemp_lag_1)
+ env_test = data.frame(ndvi=data_test$ndvi, mintemp = data_test$mintemp_lag_1)
+ env_distance <- data.frame(enviro_l2 = distl2d(env_train, env_test, method="kern"))
  env_distance$test_start_newmoonnumber <- test_start
  env_distance$species_list <- paste(data_split$species_list,collapse="_")
  env_distances[[i]] <- env_distance
@@ -152,6 +156,6 @@ for (i in initial) {
    mutate(skill_score = 1 - score/baseline_score,
           model = "Simple") 
  
- source("~/mvgamportal/R/simple_forcastplots.R", echo = TRUE)
+ #source("./R/simple_forcastplots.R", echo = TRUE)
 
 }

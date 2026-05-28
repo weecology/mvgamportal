@@ -6,6 +6,7 @@ library(portalr)
 library(glue)
 library(statip)
 library(furrr)
+library(dad)
 source("R/get_regime.R")
 
 # Set number of workers. Each worker spawns 4 cmdstanr chains, so total
@@ -249,9 +250,10 @@ run_window <- function(train_start) {
   simple_summary <- summary(simple_model)
   simple_summary$test_start_newmoonnumber <- test_start
   simple_summary$species_list <- paste(data_split$species_list,collapse="_")
-
-  env_distance <- data.frame(ndvi=hellinger(data_train$ndvi_ma12, data_test$ndvi_ma12),
-                             mintemp=hellinger(data_train$mintemp, data_test$mintemp))
+  
+  env_train = data.frame(ndvi=data_train$ndvi, mintemp = data_train$meantemp_lag_1)
+  env_test = data.frame(ndvi=data_test$ndvi, mintemp = data_test$meantemp_lag_1)
+  env_distance <- data.frame(enviro_l2 = distl2d(env_train, env_test, method="kern"))
   env_distance$test_start_newmoonnumber <- test_start
   env_distance$species_list <- paste(data_split$species_list,collapse="_")
 
