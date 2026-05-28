@@ -128,7 +128,7 @@ for (i in initial) {
  # making environmental distance. Should discuss which variables to use
  env_train = data.frame(ndvi=data_train$ndvi, mintemp = data_train$mintemp_lag_1)
  env_test = data.frame(ndvi=data_test$ndvi, mintemp = data_test$mintemp_lag_1)
- env_distance <- data.frame(enviro_l2 = distl2d(env_train, env_test, method="kern"))
+ env_distance <- data.frame(enviro_l2 = distl2dnorm(env_train, env_test, method="kern"))
  env_distance$test_start_newmoonnumber <- test_start
  env_distance$species_list <- paste(data_split$species_list,collapse="_")
  env_distances[[i]] <- env_distance
@@ -159,3 +159,8 @@ for (i in initial) {
  #source("./R/simple_forcastplots.R", echo = TRUE)
 
 }
+
+env_train = data.frame(ndvi=data_train$ndvi, mintemp = data_train$mintemp_lag_1)
+env_test = data.frame(ndvi=data_test$ndvi, mintemp = data_test$mintemp_lag_1)
+env_distance <- data.frame(enviro_l2 = distl2dnorm(data_train$mintemp_lag_1, data_test$mintemp_lag_1
+                                                   , method="kern"))
