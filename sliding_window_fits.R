@@ -1,11 +1,15 @@
 library(dplyr)
 library(cmdstanr)
+library(dad)
+library(fitdistrplus)
 library(forecast)
 library(mvgam)
 library(portalr)
 library(glue)
 library(statip)
 library(furrr)
+library(purrr)
+library(tidyr)
 source("R/get_regime.R")
 
 # Set number of workers. Each worker spawns 4 cmdstanr chains, so total
@@ -61,6 +65,30 @@ split_train_test <- function(data_all, gap, train_start, train_end, test_start, 
   return(list(train = data_train, test = data_test, species_list=species_list))
 }
 
+get_composition_distance <- function(comp_data_train, comp_data_test){
+  # TODO: Check if there is an edgecase where the species composition of train
+  # and test don't match. Might already be handled in creation of train/test w/zeros
+
+  get_probability_masses <- function(comp_data) {
+    nb_fits <- comp_data |>
+      drop_na() |>
+      group_by(species) |>
+      summarize(fit = list(fitdist(abundance, "nbinom"))) |>
+      mutate(
+        size = map_dbl(fit, ~ .x$estimate["size"]),
+        mu = map_dbl(fit, ~ .x$estimate["mu"])
+      ) |>
+      rowwise() |>
+      mutate(prob_mass = list(dnbinom(0:200, mu = mu, size = size)))
+    prob_masses <- unlist(nb_fits$prob_mass) / nrow(nb_fits)
+  }
+
+  train_prob_vector <- get_probability_masses(comp_data_train)
+  test_prob_vector <- get_probability_masses(comp_data_test)
+
+  return(ddhellingerpar(train_prob_vector, test_prob_vector))
+}
+
 # Priors
 
 sigma_prior <- prior(beta(10, 10), class = sigma, lb = 0.2, ub = 1)
@@ -94,8 +122,8 @@ train_starts <- newmoon_min:(newmoon_max - train_win_width - 12 + 1)
 
 # For non-full runs uncomment the lines below and specify desired
 # test starts as newmoonnumbers.
-# test_starts = seq(from = 200, to = 400, by = 20)
-# train_starts = test_starts - train_win_width
+test_starts = seq(from = 200, to = 240, by = 20)
+train_starts = test_starts - train_win_width
 
 run_window <- function(train_start) {
   train_end <- train_start + train_win_width - 1
@@ -250,6 +278,9 @@ run_window <- function(train_start) {
   simple_summary$test_start_newmoonnumber <- test_start
   simple_summary$species_list <- paste(data_split$species_list,collapse="_")
 
+  comp_data_train <- bind_cols(species = data_train$series, abundance = data_train$y)
+  comp_data_test <- bind_cols(species = data_test$series, abundance = data_test$y)
+  composition_distance <- get_composition_distance(comp_data_train, comp_data_test)
   env_distance <- data.frame(ndvi=hellinger(data_train$ndvi_ma12, data_test$ndvi_ma12),
                              mintemp=hellinger(data_train$mintemp, data_test$mintemp))
   env_distance$test_start_newmoonnumber <- test_start
