@@ -65,26 +65,49 @@ split_train_test <- function(data_all, gap, train_start, train_end, test_start, 
   return(list(train = data_train, test = data_test, species_list=species_list))
 }
 
-get_composition_distance <- function(comp_data_train, comp_data_test){
-  # TODO: Check if there is an edgecase where the species composition of train
-  # and test don't match. Might already be handled in creation of train/test w/zeros
-
-  get_probability_masses <- function(comp_data) {
-    nb_fits <- comp_data |>
-      drop_na() |>
-      group_by(species) |>
-      summarize(fit = list(fitdist(abundance, "nbinom"))) |>
-      mutate(
-        size = map_dbl(fit, ~ .x$estimate["size"]),
-        mu = map_dbl(fit, ~ .x$estimate["mu"])
-      ) |>
-      rowwise() |>
-      mutate(prob_mass = list(dnbinom(0:200, mu = mu, size = size)))
-    prob_masses <- unlist(nb_fits$prob_mass) / nrow(nb_fits)
+get_composition_distance <- function(comp_data_train, comp_data_test, test_start) {
+  get_probability_masses <- function(comp_data, split) {
+    cleaned <- comp_data |> drop_na()
+    tryCatch(
+      {
+        nb_fits <- cleaned |>
+          group_by(species) |>
+          summarize(fit = list(fitdist(abundance, "nbinom"))) |>
+          mutate(
+            size = map_dbl(fit, ~ .x$estimate["size"]),
+            mu = map_dbl(fit, ~ .x$estimate["mu"])
+          ) |>
+          rowwise() |>
+          mutate(prob_mass = list(dnbinom(0:200, mu = mu, size = size)))
+        unlist(nb_fits$prob_mass) / nrow(nb_fits)
+      },
+      error = function(e) {
+        species_abund <- cleaned |>
+          group_by(species) |>
+          summarize(vals = paste(abundance, collapse = ","), .groups = "drop")
+        abund_str <- paste(
+          paste0(species_abund$species, ": ", species_abund$vals),
+          collapse = "; "
+        )
+        cat(
+          format(Sys.time(), "[%Y-%m-%d %H:%M:%S]"),
+          sprintf("test_start=%s, split=%s, abundances: %s\n", test_start, split, abund_str),
+          file = "comp_dist_poisson_fallbacks.log",
+          append = TRUE
+        )
+        pois_fits <- cleaned |>
+          group_by(species) |>
+          summarize(fit = list(fitdist(abundance, "pois", method = "mme"))) |>
+          mutate(lambda = map_dbl(fit, ~ .x$estimate["lambda"])) |>
+          rowwise() |>
+          mutate(prob_mass = list(dpois(0:200, lambda = lambda)))
+        unlist(pois_fits$prob_mass) / nrow(pois_fits)
+      }
+    )
   }
 
-  train_prob_vector <- get_probability_masses(comp_data_train)
-  test_prob_vector <- get_probability_masses(comp_data_test)
+  train_prob_vector <- get_probability_masses(comp_data_train, "train")
+  test_prob_vector <- get_probability_masses(comp_data_test, "test")
 
   return(ddhellingerpar(train_prob_vector, test_prob_vector))
 }
@@ -280,7 +303,7 @@ run_window <- function(train_start) {
 
   comp_data_train <- bind_cols(species = data_train$series, abundance = data_train$y)
   comp_data_test <- bind_cols(species = data_test$series, abundance = data_test$y)
-  composition_distance <- get_composition_distance(comp_data_train, comp_data_test)
+  composition_distance <- get_composition_distance(comp_data_train, comp_data_test, test_start)
   env_distance <- data.frame(ndvi=hellinger(data_train$ndvi_ma12, data_test$ndvi_ma12),
                              mintemp=hellinger(data_train$mintemp, data_test$mintemp))
   env_distance$test_start_newmoonnumber <- test_start
