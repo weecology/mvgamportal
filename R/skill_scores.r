@@ -4,7 +4,8 @@ library(tidyr)
 tidy_score <- function(score_df, model_name) {
   as.data.frame(score_df) %>%
     mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
-    select(-contains("score_type")) %>%
+    # Explicit namespacing required - something is loading MASS & overwriting
+    dplyr::select(-contains("score_type")) %>%
     pivot_longer(cols = !c("test_start_newmoonnumber", "newmoonnumber",
                            "species_list", "rhat", "prhat_high", "n_divergences"),
                  names_to = c("species", "type"),
@@ -23,7 +24,8 @@ scores <- bind_rows(
 
 baseline_ref <- scores %>%
   filter(model == "BASELINE") %>%
-  select(test_start_newmoonnumber, newmoonnumber, species, eval_horizon,
+  # Explicit namespacing required - something is loading MASS & overwriting
+  dplyr::select(test_start_newmoonnumber, newmoonnumber, species, eval_horizon,
          baseline_score = score)
 
 scores <- scores %>%
