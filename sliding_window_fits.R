@@ -1,12 +1,14 @@
 library(dplyr)
 library(cmdstanr)
+library(dad)
+library(fitdistrplus)
 library(forecast)
 library(mvgam)
 library(portalr)
 library(glue)
-library(statip)
 library(furrr)
-library(dad)
+library(purrr)
+library(tidyr)
 source("R/get_regime.R")
 
 # Set number of workers. Each worker spawns 4 cmdstanr chains, so total
@@ -16,6 +18,7 @@ n_workers <- as.integer(Sys.getenv("MVGAM_N_WORKERS", unset = "8"))
 plan(multisession, workers = n_workers / 4)
 
 data_all <- readRDS("data_heteromyid.rds")
+data_all$ndvi <- 1/data_all$ndvi
 
 split_train_test <- function(data_all, gap, train_start, train_end, test_start, test_end) {
   species_list <- data.frame(newmoonnumber=data_all$newmoonnumber,series=data_all$series,y=data_all$y) |>
@@ -62,6 +65,53 @@ split_train_test <- function(data_all, gap, train_start, train_end, test_start, 
   return(list(train = data_train, test = data_test, species_list=species_list))
 }
 
+get_composition_distance <- function(comp_data_train, comp_data_test, test_start) {
+  get_probability_masses <- function(comp_data, split) {
+    cleaned <- comp_data |> drop_na()
+    tryCatch(
+      {
+        nb_fits <- cleaned |>
+          group_by(species) |>
+          summarize(fit = list(fitdist(abundance, "nbinom"))) |>
+          mutate(
+            size = map_dbl(fit, ~ .x$estimate["size"]),
+            mu = map_dbl(fit, ~ .x$estimate["mu"])
+          ) |>
+          rowwise() |>
+          mutate(prob_mass = list(dnbinom(0:200, mu = mu, size = size)))
+        unlist(nb_fits$prob_mass) / nrow(nb_fits)
+      },
+      error = function(e) {
+        species_abund <- cleaned |>
+          group_by(species) |>
+          summarize(vals = paste(abundance, collapse = ","), .groups = "drop")
+        abund_str <- paste(
+          paste0(species_abund$species, ": ", species_abund$vals),
+          collapse = "; "
+        )
+        cat(
+          format(Sys.time(), "[%Y-%m-%d %H:%M:%S]"),
+          sprintf("test_start=%s, split=%s, abundances: %s\n", test_start, split, abund_str),
+          file = "comp_dist_poisson_fallbacks.log",
+          append = TRUE
+        )
+        pois_fits <- cleaned |>
+          group_by(species) |>
+          summarize(fit = list(fitdist(abundance, "pois", method = "mme"))) |>
+          mutate(lambda = map_dbl(fit, ~ .x$estimate["lambda"])) |>
+          rowwise() |>
+          mutate(prob_mass = list(dpois(0:200, lambda = lambda)))
+        unlist(pois_fits$prob_mass) / nrow(pois_fits)
+      }
+    )
+  }
+
+  train_prob_vector <- get_probability_masses(comp_data_train, "train")
+  test_prob_vector <- get_probability_masses(comp_data_test, "test")
+
+  return(ddhellingerpar(train_prob_vector, test_prob_vector))
+}
+
 # Priors
 
 sigma_prior <- prior(beta(10, 10), class = sigma, lb = 0.2, ub = 1)
@@ -95,8 +145,8 @@ train_starts <- newmoon_min:(newmoon_max - train_win_width - 12 + 1)
 
 # For non-full runs uncomment the lines below and specify desired
 # test starts as newmoonnumbers.
-# test_starts = seq(from = 200, to = 400, by = 20)
-# train_starts = test_starts - train_win_width
+test_starts = seq(from = 200, to = 240, by = 20)
+train_starts = test_starts - train_win_width
 
 run_window <- function(train_start) {
   train_end <- train_start + train_win_width - 1
@@ -250,10 +300,14 @@ run_window <- function(train_start) {
   simple_summary <- summary(simple_model)
   simple_summary$test_start_newmoonnumber <- test_start
   simple_summary$species_list <- paste(data_split$species_list,collapse="_")
+
+  comp_data_train <- bind_cols(species = data_train$series, abundance = data_train$y)
+  comp_data_test <- bind_cols(species = data_test$series, abundance = data_test$y)
+  composition_distance <- get_composition_distance(comp_data_train, comp_data_test, test_start)
   
   env_train = data.frame(ndvi=data_train$ndvi, mintemp = data_train$meantemp_lag_1)
   env_test = data.frame(ndvi=data_test$ndvi, mintemp = data_test$meantemp_lag_1)
-  env_distance <- data.frame(enviro_l2 = distl2d(env_train, env_test, method="kern"))
+  env_distance <- data.frame(enviro_l2 = ddhellinger(env_train, env_test))
   env_distance$test_start_newmoonnumber <- test_start
   env_distance$species_list <- paste(data_split$species_list,collapse="_")
 
@@ -270,7 +324,8 @@ run_window <- function(train_start) {
     scores = scores,
     summaries = list(baseline_summary, ar_summary, gam_ar_summary,
                      gam_var_summary, simple_summary),
-    env_distance = env_distance
+    env_distance = env_distance,
+    composition_distance = composition_distance
   )
 }
 
@@ -290,10 +345,12 @@ results <- purrr::map(results, "result")
 scores <- purrr::map_dfr(results, "scores")
 summaries <- purrr::flatten(purrr::map(results, "summaries"))
 env_distances <- purrr::map(results, "env_distance")
+composition_distances <- purrr::map(results, "composition_distance")
 
 saveRDS(scores, "scores.rds")
 saveRDS(summaries, "summaries.rds")
 saveRDS(env_distances, "env_distances.rds")
+saveRDS(composition_distances, "composition_distances.rds")
 
 # scores <- readRDS("scores.rds")
 # summaries <- readRDS("summaries.rds")
