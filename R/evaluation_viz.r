@@ -1,13 +1,18 @@
 library(dplyr)
 library(ggplot2)
-library(dplyr)
 library(ggpp)
+library(patchwork)
 
-# scores <- readRDS("scores.rds")
-# env_distances <- readRDS("env_distances.rds")
+scores <- readRDS("scores.rds")
+env_distances <- readRDS("env_distances.rds")
+comp_distances <- readRDS("composition_distances.rds")
 
 env_dfs <- lapply(env_distances, data.frame, stringsAsFactors = FALSE)
 environment <- bind_rows(env_dfs)
+
+comp_dfs <- lapply(comp_distances, data.frame, stringsAsFactors = FALSE)
+composition <- bind_rows(comp_dfs)
+environment$composition_dist <- composition[,1]
 
 skill_scores <- scores %>% filter(model != "BASELINE")
 overall_skill_scores = skill_scores %>%
@@ -148,8 +153,8 @@ p4 <- ggplot(environment) +
   geom_rect(aes(xmin=140, xmax=230, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=263, xmax=278, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=396, xmax=411, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
-  geom_point(aes(x=test_start_newmoonnumber, y=ndvi), color="green4") +
-  geom_point(aes(x=test_start_newmoonnumber, y=mintemp), color="red4") +
+  geom_point(aes(x=test_start_newmoonnumber, y=enviro_dist), color="green4") +
+  geom_point(aes(x=test_start_newmoonnumber, y=composition_dist), color="red4") +
   ylab("dist") +
   theme_minimal() +
   theme(legend.position = "none")
@@ -183,8 +188,8 @@ p4 <- ggplot(environment) +
   geom_rect(aes(xmin=140, xmax=230, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=263, xmax=278, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=396, xmax=411, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
-  geom_point(aes(x=test_start_newmoonnumber, y=ndvi), color="green4") +
-  geom_point(aes(x=test_start_newmoonnumber, y=mintemp), color="red4") +
+  geom_point(aes(x=test_start_newmoonnumber, y=enviro_dist), color="green4") +
+  geom_point(aes(x=test_start_newmoonnumber, y=composition_dist), color="red4") +
   ylab("dist") +
   theme_minimal() +
   theme(legend.position = "none")
@@ -217,8 +222,8 @@ p4 <- ggplot(environment) +
   geom_rect(aes(xmin=140, xmax=230, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=263, xmax=278, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
   geom_rect(aes(xmin=396, xmax=411, ymin=0, ymax=Inf), fill="lightgrey",alpha=0.2, color=NA) +
-  geom_point(aes(x=test_start_newmoonnumber, y=ndvi), color="green4") +
-  geom_point(aes(x=test_start_newmoonnumber, y=mintemp), color="red4") +
+  geom_point(aes(x=test_start_newmoonnumber, y=enviro_dist), color="green4") +
+  geom_point(aes(x=test_start_newmoonnumber, y=composition_dist), color="red4") +
   ylab("dist") +
   theme_minimal() +
   theme(legend.position = "none")
@@ -292,7 +297,7 @@ tail_insets_overall <- skill_hist_overall %>%
   group_modify(~tibble(tail_data = list(.x))) %>%
   left_join(hist_ymax_overall, by = "model") %>%
   mutate(inset = Map(make_tail_inset, tail_data, max_count), npcx = inset_npcx, npcy = 0.98) %>%
-  select(-tail_data, -max_count)
+  dplyr::select(-tail_data, -max_count)
 
 ggplot(skill_hist_overall, aes(x=skill_score_clamped, fill=pooled)) +
   annotate("rect", xmin = 0, xmax = Inf, ymin = -Inf, ymax = Inf, fill = "lightgrey", alpha = 0.6) +
@@ -321,7 +326,7 @@ tail_insets_species <- skill_hist_species %>%
   group_modify(~tibble(tail_data = list(.x))) %>%
   left_join(hist_ymax_species, by = c("species", "model")) %>%
   mutate(inset = Map(make_tail_inset, tail_data, max_count), npcx = inset_npcx, npcy = 0.98) %>%
-  select(-tail_data, -max_count)
+  dplyr::select(-tail_data, -max_count)
 
 ggplot(skill_hist_species, aes(x=skill_score_clamped, fill=pooled)) +
   annotate("rect", xmin = 0, xmax = Inf, ymin = -Inf, ymax = Inf, fill = "lightgrey", alpha = 0.6) +
