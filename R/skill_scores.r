@@ -17,9 +17,9 @@ tidy_score <- function(score_df, model_name) {
 scores <- bind_rows(
   tidy_score(baseline_score, "BASELINE"),
   tidy_score(ar_score,       "AR"),
-  tidy_score(gam_ar_score,   "GAM_AR"),
-  tidy_score(gam_var_score,  "GAM_VAR"),
-  tidy_score(simple_score,   "SIMPLE")
+  tidy_score(gam_ar_score,   "GAM_AR")
+  # tidy_score(gam_var_score,  "GAM_VAR"),
+  # tidy_score(simple_score,   "SIMPLE")
 )
 
 baseline_ref <- scores %>%

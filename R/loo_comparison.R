@@ -3,11 +3,12 @@ library(dplyr)
 library(loo)
 library(ggplot2)
 
-loos_invndvi <- readRDS("loos.rds")
-loos_ndvi <- readRDS("loos_ndvi.rds")
+loos_invndvi <- readRDS("loos_dm_wgamar_1.rds")
+loos_ndvi <- readRDS("loos_dm_wgamar_2.rds")
 
 newmoons <- sapply(loos_invndvi, function(x) x$test_start_newmoonnumber)
-models <- rep(c("Baseline","AR","GAM_AR","GAM_VAR","Simple"),6)
+#models <- rep(c("Baseline","AR","GAM_AR","GAM_VAR","Simple"),6)
+models <- rep(c("Baseline", "AR", "GAM_AR"), 16)
 
 pairwise_comparisons <- map2(loos_ndvi, loos_invndvi, function(mod_a, mod_b) {
   loo_compare(list(NDVI = mod_a, Inv_NDVI = mod_b))
