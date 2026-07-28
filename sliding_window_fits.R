@@ -20,13 +20,14 @@ plan(multisession, workers = n_workers / 4)
 data_all <- readRDS("data_heteromyid.rds")
 
 split_train_test <- function(data_all, gap, train_start, train_end, test_start, test_end) {
-  species_list <- data.frame(newmoonnumber=data_all$newmoonnumber,series=data_all$series,y=data_all$y) |>
+  species_list <- data.frame(newmoonnumber = data_all$newmoonnumber, series = data_all$series, y = data_all$y) |>
     filter(newmoonnumber >= train_start, newmoonnumber <= (train_end)) |>
     group_by(newmoonnumber, series) |>
-    summarise(abundance = sum(y, na.rm = TRUE), .groups = 'drop') |>
+    summarise(abundance = sum(y, na.rm = TRUE), .groups = "drop") |>
     group_by(series) |>
-    summarise(occupancy = sum(abundance > 0) / n(), .groups = 'drop') |>
+    summarise(occupancy = sum(abundance > 0) / n(), .groups = "drop") |>
     filter(occupancy >= 0.30) |>
+    filter(series == "PP") |>
     pull(series) |>
     droplevels()
 
@@ -128,25 +129,31 @@ ar_priors <- c(sigma_prior)
 gam_ar_priors <- c(sigma_prior)
 gam_var_priors <- c(sigma_prior)
 
-trend_formula_PP = ~ s(ndvi_ma12, trend, bs = "re") +
-  te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
-  te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
-  te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr")) +
-  te(mintemp, lag, by = weights_pp, k = c(3, 4), bs = c("tp", "cr"))
+# trend_formula_PP = ~ s(ndvi_ma12, trend, bs = "re") +
+#   te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
+#   te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
+#   te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr")) +
+#   te(mintemp, lag, by = weights_pp, k = c(3, 4), bs = c("tp", "cr")
 
-trend_formula_DX = ~ s(ndvi_ma12, trend, bs = "re") +
-  te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
-  te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
-  te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr"))
+# trend_formula_DX = ~ s(ndvi_ma12, trend, bs = "re") +
+#   te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) #+
+#   te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
+#   te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr"))
+
+trend_formula_PP = ~ s(ndvi_ma12, bs = "tp") +
+  te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr"))
+
+trend_formula_DX = ~ s(ndvi_ma12, bs = "tp") +
+  te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr"))
 
 newmoon_min <- min(data_all$newmoonnumber)
 newmoon_max <- max(data_all$newmoonnumber)
-train_win_width <- 60
+train_win_width <- 120
 train_starts <- newmoon_min:(newmoon_max - train_win_width - 12 + 1)
 
 # For non-full runs uncomment the lines below and specify desired
 # test starts as newmoonnumbers.
-test_starts = seq(from = 200, to = 400, by = 40)
+test_starts = seq(from = 200, to = 500, by = 20)
 train_starts = test_starts - train_win_width
 
 run_window <- function(train_start) {
@@ -172,22 +179,22 @@ run_window <- function(train_start) {
   }
 
   baseline_model <- mvgam(
-    formula = y ~ -1 + series, #remove global intercept and allow species-specific intercepts
+    formula = y ~ -1,# + series, #remove global intercept and allow species-specific intercepts
     data = data_train,
     newdata = data_test,
-    family = poisson(),
+    family = nb(),
     silent = 2,
     refresh = 0
   )
 
   ar_model <- mvgam(
-    formula = y ~ -1 + series,
+    formula = y ~ -1,# + series,
     data = data_train,
     newdata = data_test,
     family = nb(),
     trend_model = AR(),
     priors = ar_priors,
-    burnin = 5000,
+    burnin = 2000,
     samples = 2000,
     silent = 2,
     refresh = 0
@@ -208,26 +215,31 @@ run_window <- function(train_start) {
     control = list(adapt_delta = 0.95) # Increase from default 0.8 to decrease divergences
   )
 
-  gam_var_model <- mvgam(
-    formula = y ~ -1,
-    trend_formula = trend_formula,
-    data = data_train,
-    newdata = data_test,
-    family = nb(),
-    trend_model = VAR(),
-    priors = gam_var_priors,
-    burnin = 5000,
-    samples = 2000,
-    silent = 2,
-    refresh = 0,
-    control = list(adapt_delta = 0.95)
-  )
+ #  gam_var_model <- mvgam(
+ #    formula = y ~ -1,
+ #    trend_formula = trend_formula,
+ #    data = data_train,
+ #    newdata = data_test,
+ #    family = nb(),
+ #    trend_model = VAR(),
+ #    priors = gam_var_priors,
+ #    burnin = 5000,
+ #    samples = 2000,
+ #    silent = 2,
+ #    refresh = 0,
+ #    control = list(adapt_delta = 0.95)
+ #  )
 
   simple_model <- mvgam(
     formula = y ~ -1,
-    trend_formula = ~ te(mintemp_lag_0, delta_mintemp, by = trend, k = 4, bs = "sz") +
-      s(summer_ndvi, by = trend, k = 4) +
-      s(winter_ndvi, by = trend, k = 4),
+    # trend_formula = ~ te(mintemp_lag_0, delta_mintemp, by = trend, k = 4, bs = "sz") +
+    #   s(summer_ndvi, by = trend, k = 4) +
+    #   s(winter_ndvi, by = trend, k = 4) +
+    #   s(time, k = 3),
+   trend_formula = ~ te(mintemp_lag_0, delta_mintemp, k = 4, bs = "tp") +
+     s(summer_ndvi, k = 4) +
+     s(winter_ndvi, k = 4) +
+     s(time, k = 3),
    data = data_train,
    newdata = data_test,
    family = nb(),
@@ -285,20 +297,20 @@ run_window <- function(train_start) {
   gam_ar_loo <- loo(gam_ar_model)
   gam_ar_loo$test_start_newmoonnumber <- test_start
 
-  gam_var_score <- score(forecast(gam_var_model), score = "crps")
-  gam_var_score$test_start_newmoonnumber <- test_start
-  gam_var_score$species_list <- paste(data_split$species_list,collapse="_")
-  gam_var_score$rhat <- mean(rhat(gam_var_model),na.rm=TRUE)
-  gam_var_score$prhat_high <- mean(rhat(gam_var_model)>1.05,na.rm=TRUE)
-  gam_var_score$n_divergences <- sum(sapply(
-    rstan::get_sampler_params(gam_var_model$model_output, inc_warmup = FALSE),
-    function(x) sum(x[, 'divergent__'])))
-  gam_var_summary <- summary(gam_var_model)
-  gam_var_summary$test_start_newmoonnumber <- test_start
-  gam_var_summary$species_list <- paste(data_split$species_list,collapse="_")
+  # gam_var_score <- score(forecast(gam_var_model), score = "crps")
+  # gam_var_score$test_start_newmoonnumber <- test_start
+  # gam_var_score$species_list <- paste(data_split$species_list,collapse="_")
+  # gam_var_score$rhat <- mean(rhat(gam_var_model),na.rm=TRUE)
+  # gam_var_score$prhat_high <- mean(rhat(gam_var_model)>1.05,na.rm=TRUE)
+  # gam_var_score$n_divergences <- sum(sapply(
+  #   rstan::get_sampler_params(gam_var_model$model_output, inc_warmup = FALSE),
+  #   function(x) sum(x[, 'divergent__'])))
+  # gam_var_summary <- summary(gam_var_model)
+  # gam_var_summary$test_start_newmoonnumber <- test_start
+  # gam_var_summary$species_list <- paste(data_split$species_list,collapse="_")
   
-  gam_var_loo <- loo(gam_var_model)
-  gam_var_loo$test_start_newmoonnumber <- test_start
+  # gam_var_loo <- loo(gam_var_model)
+  # gam_var_loo$test_start_newmoonnumber <- test_start
 
   simple_score <- score(forecast(simple_model), score = "crps")
   simple_score$test_start_newmoonnumber <- test_start
@@ -315,35 +327,35 @@ run_window <- function(train_start) {
   simple_loo <- loo(simple_model)
   simple_loo$test_start_newmoonnumber <- test_start
 
-  comp_data_train <- bind_cols(species = data_train$series, abundance = data_train$y)
-  comp_data_test <- bind_cols(species = data_test$series, abundance = data_test$y)
-  composition_distance <- get_composition_distance(comp_data_train, comp_data_test, test_start)
+  # comp_data_train <- bind_cols(species = data_train$series, abundance = data_train$y)
+  # comp_data_test <- bind_cols(species = data_test$series, abundance = data_test$y)
+  # composition_distance <- get_composition_distance(comp_data_train, comp_data_test, test_start)
 
-  env_train = data.frame(ndvi=data_train$ndvi, mintemp = data_train$meantemp_lag_1)
-  env_test = data.frame(ndvi=data_test$ndvi, mintemp = data_test$meantemp_lag_1)
-  env_distance <- data.frame(enviro_dist = hellinger(env_train, env_test))
-  env_distance$test_start_newmoonnumber <- test_start
-  env_distance$species_list <- paste(data_split$species_list,collapse="_")
+  # env_train = data.frame(ndvi=data_train$ndvi, mintemp = data_train$meantemp_lag_1)
+  # env_test = data.frame(ndvi=data_test$ndvi, mintemp = data_test$meantemp_lag_1)
+  # env_distance <- data.frame(enviro_dist = hellinger(env_train, env_test))
+  # env_distance$test_start_newmoonnumber <- test_start
+  # env_distance$species_list <- paste(data_split$species_list,collapse="_")
 
   source("R/skill_scores.r", local = TRUE)
-  source("R/forecast_plots.r", local = TRUE, echo = TRUE)
+  # source("R/forecast_plots.r", local = TRUE, echo = TRUE)
 
   baseline_summary$model <- "BASELINE"
   ar_summary$model       <- "AR"
   gam_ar_summary$model   <- "GAM_AR"
-  gam_var_summary$model  <- "GAM_VAR"
+#  gam_var_summary$model  <- "GAM_VAR"
   simple_summary$model   <- "SIMPLE"
   
   gc()
 
   list(
     scores = scores,
-    summaries = list(baseline_summary, ar_summary, gam_ar_summary,
-                     gam_var_summary, simple_summary),
-    loos = list(baseline_loo, ar_loo, gam_ar_loo,
-                     gam_var_loo, simple_loo),
-    env_distance = env_distance,
-    composition_distance = composition_distance
+    summaries = list(baseline_summary, ar_summary, gam_ar_summary, simple_summary),
+                     #gam_var_summary, simple_summary),
+    loos = list(baseline_loo, ar_loo, gam_ar_loo, simple_loo)#,
+                    # gam_var_loo, simple_loo),
+    #env_distance = env_distance,
+    #composition_distance = composition_distance
   )
 }
 
@@ -351,6 +363,7 @@ safe_run_window <- purrr::safely(run_window)
 results <- future_map(
   train_starts,
   safe_run_window,
+  .progress = TRUE,
   .options = furrr_options(seed = TRUE)
 )
 
@@ -363,14 +376,14 @@ results <- purrr::map(results, "result")
 scores <- purrr::map_dfr(results, "scores")
 summaries <- purrr::flatten(purrr::map(results, "summaries"))
 loos <- purrr::flatten(purrr::map(results, "loos"))
-env_distances <- purrr::map(results, "env_distance")
-composition_distances <- purrr::map(results, "composition_distance")
+#env_distances <- purrr::map(results, "env_distance")
+#composition_distances <- purrr::map(results, "composition_distance")
 
 saveRDS(scores, "scores.rds")
 #saveRDS(summaries, "summaries.rds")
 saveRDS(loos, "loos.rds")
-saveRDS(env_distances, "env_distances.rds")
-saveRDS(composition_distances, "composition_distances.rds")
+#saveRDS(env_distances, "env_distances.rds")
+#saveRDS(composition_distances, "composition_distances.rds")
 
 # scores <- readRDS("scores.rds")
 # summaries <- readRDS("summaries.rds")

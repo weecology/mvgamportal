@@ -3,7 +3,7 @@ library(tidyr)
 
 tidy_score <- function(score_df, model_name) {
   as.data.frame(score_df) %>%
-    mutate(newmoonnumber = test_start_newmoonnumber + DM.eval_horizon - 1) %>%
+    mutate(newmoonnumber = test_start_newmoonnumber + PP.eval_horizon - 1) %>%
     # Explicit namespacing required - something is loading MASS & overwriting
     dplyr::select(-contains("score_type")) %>%
     pivot_longer(cols = !c("test_start_newmoonnumber", "newmoonnumber",
@@ -17,9 +17,9 @@ tidy_score <- function(score_df, model_name) {
 scores <- bind_rows(
   tidy_score(baseline_score, "BASELINE"),
   tidy_score(ar_score,       "AR"),
-  tidy_score(gam_ar_score,   "GAM_AR")
+  tidy_score(gam_ar_score,   "GAM_AR"),
   # tidy_score(gam_var_score,  "GAM_VAR"),
-  # tidy_score(simple_score,   "SIMPLE")
+  tidy_score(simple_score,   "SIMPLE")
 )
 
 baseline_ref <- scores %>%
