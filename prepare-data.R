@@ -52,7 +52,7 @@ rodent_data <- rodent_data |>
   filter(species %in% target_species) |>
   mutate(species = factor(species, levels = unique(species))) |>
   mutate(abundance = as.integer(round(abundance * 4 / nplots, 0))) |>
-  select(-ntraps, -nplots)
+  dplyr::select(-ntraps, -nplots)
 max_newmoon <- max(rodent_data$newmoonnumber)
 
 moon_dates <- load_datafile("Rodents/moon_dates.csv", na.strings = c("NA")) |>
@@ -94,13 +94,13 @@ weather <- weather(
   mintemp_lag_1 = lag(mintemp),
   delta_mintemp = mintemp_lag_0 - mintemp_lag_1
  ) |>
- select(-c(mintemp_lag_0, mintemp_lag_1,newmoondate,period))
+  dplyr::select(-c(mintemp_lag_0, mintemp_lag_1,newmoondate,period))
 
 # NDVI not filled in Clarke et al. 2025
 ndvi <- ndvi(level = "newmoon", fill = TRUE) |>
   filter(newmoonnumber <= max_newmoon) |>
   left_join(moon_dates[,1:2], by = join_by(newmoonnumber)) |>
-  mutate(year=lubridate::year(newmoondate),month=lubridate::month(newmoondate))
+  mutate(year=lubridate::year(newmoondate),month=lubridate::month(newmoondate),ndvi=1/ndvi)
 min_newmoon <- min(ndvi$newmoonnumber)
 
 # Add seasonal NDVI
@@ -120,7 +120,7 @@ ndvi <- ndvi |>
     ndvi_seasons$summer_ndvi[match(year-1, ndvi_seasons$year)], 
     ndvi_seasons$summer_ndvi[match(year, ndvi_seasons$year)]
   )) |>
-  select(-c(year,month,newmoondate))
+  dplyr::select(-c(year,month,newmoondate))
 
 
 # Different from Clarke et al. 2025 we are scaling the ma12 of ndvi not
@@ -155,7 +155,7 @@ covars <- weather |>
     winter_ndvi = scale(winter_ndvi),
     summer_ndvi = scale(summer_ndvi)
   ) |>
-  select(
+  dplyr::select(
     newmoonnumber,
     meantemp,
     mintemp,
@@ -174,8 +174,8 @@ covars <- weather |>
   )
 
 # Temperature 6-month lag matrices
-mintemp_df <- lagard(select(covars, newmoonnumber, mintemp), 6)
-maxtemp_df <- lagard(select(covars, newmoonnumber, maxtemp), 6)
+mintemp_df <- lagard(dplyr::select(covars, newmoonnumber, mintemp), 6)
+maxtemp_df <- lagard(dplyr::select(covars, newmoonnumber, maxtemp), 6)
 
 covars_w_lags <- covars |>
   inner_join(mintemp_df, by = c("newmoonnumber")) |>
@@ -190,7 +190,7 @@ model_dat <- rodent_data |>
     series = species,
     time = newmoonnumber - (min(newmoonnumber) - 1)
   ) |>
-  select(time, y, series, newmoonnumber, meantemp:maxtemp_lag_6) |>
+  dplyr::select(time, y, series, newmoonnumber, meantemp:maxtemp_lag_6) |>
   arrange(time, series)
 
 # Compared to Clarke et al. 2025 we don't need to filter species
@@ -219,11 +219,11 @@ data_all <- list(
   lag = lag,
   meantemp = model_dat$meantemp,
   meantemp_lag_1 = model_dat$meantemp_lag_1,
-  mintemp = as.matrix(select(model_dat, mintemp_lag_0:mintemp_lag_5)),
+  mintemp = as.matrix(dplyr::select(model_dat, mintemp_lag_0:mintemp_lag_5)),
   mintemp_lag_0 = model_dat$mintemp_lag_0,
   delta_mintemp = model_dat$delta_mintemp,
   mintemp_ma3 = model_dat$mintemp_ma3,
-  maxtemp = as.matrix(select(model_dat, maxtemp_lag_1:maxtemp_lag_6)),
+  maxtemp = as.matrix(dplyr::select(model_dat, maxtemp_lag_1:maxtemp_lag_6)),
   maxtemp_ma3 = model_dat$maxtemp_ma3,
   warm_precip = model_dat$warm_precip,
   cool_precip = model_dat$cool_precip,
@@ -252,11 +252,11 @@ data_pb_regime <- list(
   lag = lag[-filter_indices, , drop = FALSE],
   meantemp = model_dat_pb_regime$meantemp,
   meantemp_lag_1 = model_dat_pb_regime$meantemp_lag_1,
-  mintemp = as.matrix(select(model_dat_pb_regime, mintemp_lag_0:mintemp_lag_5)),
+  mintemp = as.matrix(dplyr::select(model_dat_pb_regime, mintemp_lag_0:mintemp_lag_5)),
   mintemp_lag_0 = model_dat_pb_regime$mintemp_lag_0,
   delta_mintemp = model_dat_pb_regime$delta_mintemp,
   mintemp_ma3 = model_dat_pb_regime$mintemp_ma3,
-  maxtemp = as.matrix(select(model_dat_pb_regime, maxtemp_lag_1:maxtemp_lag_6)),
+  maxtemp = as.matrix(dplyr::select(model_dat_pb_regime, maxtemp_lag_1:maxtemp_lag_6)),
   maxtemp_ma3 = model_dat_pb_regime$maxtemp_ma3,
   warm_precip = model_dat_pb_regime$warm_precip,
   cool_precip = model_dat_pb_regime$cool_precip,
@@ -282,11 +282,11 @@ data_heteromyid <- list(
   lag = lag[-filter_indices2, , drop = FALSE],
   meantemp = model_dat_heteromyids$meantemp,
   meantemp_lag_1 = model_dat_heteromyids$meantemp_lag_1,
-  mintemp = as.matrix(select(model_dat_heteromyids, mintemp_lag_0:mintemp_lag_5)),
+  mintemp = as.matrix(dplyr::select(model_dat_heteromyids, mintemp_lag_0:mintemp_lag_5)),
   mintemp_lag_0 = model_dat_heteromyids$mintemp_lag_0,
   delta_mintemp = model_dat_heteromyids$delta_mintemp,
   mintemp_ma3 = model_dat_heteromyids$mintemp_ma3,
-  maxtemp = as.matrix(select(model_dat_heteromyids, maxtemp_lag_1:maxtemp_lag_6)),
+  maxtemp = as.matrix(dplyr::select(model_dat_heteromyids, maxtemp_lag_1:maxtemp_lag_6)),
   maxtemp_ma3 = model_dat_heteromyids$maxtemp_ma3,
   warm_precip = model_dat_heteromyids$warm_precip,
   cool_precip = model_dat_heteromyids$cool_precip,
