@@ -29,6 +29,8 @@ baseline_ref <- scores %>%
          baseline_score = score)
 
 scores <- scores %>%
-  left_join(baseline_ref,
-            by = join_by(test_start_newmoonnumber, newmoonnumber, species, eval_horizon)) %>%
+  left_join(
+    baseline_ref,
+    by = join_by(test_start_newmoonnumber, newmoonnumber, species, eval_horizon)
+  ) %>%
   mutate(skill_score = 1 - score / baseline_score)

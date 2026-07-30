@@ -19,8 +19,19 @@ plan(multisession, workers = n_workers / 4)
 
 data_all <- readRDS("data_heteromyid.rds")
 
-split_train_test <- function(data_all, gap, train_start, train_end, test_start, test_end) {
-  species_list <- data.frame(newmoonnumber=data_all$newmoonnumber,series=data_all$series,y=data_all$y) |>
+split_train_test <- function(
+  data_all,
+  gap,
+  train_start,
+  train_end,
+  test_start,
+  test_end
+) {
+  species_list <- data.frame(
+    newmoonnumber = data_all$newmoonnumber,
+    series = data_all$series,
+    y = data_all$y
+  ) |>
     filter(newmoonnumber >= train_start, newmoonnumber <= (train_end)) |>
     group_by(newmoonnumber, series) |>
     summarise(abundance = sum(y, na.rm = TRUE), .groups = 'drop') |>
@@ -30,9 +41,11 @@ split_train_test <- function(data_all, gap, train_start, train_end, test_start, 
     pull(series) |>
     droplevels()
 
-  train_inds <- which(data_all$newmoonnumber >= train_start &
-    data_all$newmoonnumber <= (train_end) &     # Old +1 here keeps the first observation after the gap to serve as the initial condition, also cut +gap since no gaps
-    data_all$series %in% species_list)
+  train_inds <- which(
+    data_all$newmoonnumber >= train_start &
+      data_all$newmoonnumber <= (train_end) &
+      data_all$series %in% species_list
+  )
   data_train <- lapply(seq_along(data_all), function(x) {
     if (is.matrix(data_all[[x]])) {
       data_all[[x]][train_inds, ]
@@ -43,13 +56,12 @@ split_train_test <- function(data_all, gap, train_start, train_end, test_start, 
 
   names(data_train) <- names(data_all)
   data_train$series <- droplevels(data_train$series)
-  # gap_inds <- which(data_train$newmoonnumber >= (train_end + 1) &
-  #   data_train$newmoonnumber <= (train_end + gap))
-  # data_train$y[gap_inds] <- NA
 
-  test_inds <- which(data_all$newmoonnumber >= (test_start) & # Old +1 here was to skip the initial condition point
-    data_all$newmoonnumber <= test_end &
-    data_all$series %in% species_list)
+  test_inds <- which(
+    data_all$newmoonnumber >= (test_start) &
+      data_all$newmoonnumber <= test_end &
+      data_all$series %in% species_list
+  )
   data_test <- lapply(seq_along(data_all), function(x) {
     if (is.matrix(data_all[[x]])) {
       data_all[[x]][test_inds, ]
@@ -61,10 +73,18 @@ split_train_test <- function(data_all, gap, train_start, train_end, test_start, 
   names(data_test) <- names(data_all)
   data_test$series <- droplevels(data_test$series)
 
-  return(list(train = data_train, test = data_test, species_list=species_list))
+  return(list(
+    train = data_train,
+    test = data_test,
+    species_list = species_list
+  ))
 }
 
-get_composition_distance <- function(comp_data_train, comp_data_test, test_start) {
+get_composition_distance <- function(
+  comp_data_train,
+  comp_data_test,
+  test_start
+) {
   get_probability_masses <- function(comp_data, split) {
     cleaned <- comp_data |> drop_na()
     tryCatch(
@@ -90,7 +110,12 @@ get_composition_distance <- function(comp_data_train, comp_data_test, test_start
         )
         cat(
           format(Sys.time(), "[%Y-%m-%d %H:%M:%S]"),
-          sprintf("test_start=%s, split=%s, abundances: %s\n", test_start, split, abund_str),
+          sprintf(
+            "test_start=%s, split=%s, abundances: %s\n",
+            test_start,
+            split,
+            abund_str
+          ),
           file = "comp_dist_poisson_fallbacks.log",
           append = TRUE
         )
@@ -121,20 +146,18 @@ ndvi_random_slopes_prior <- prior(
   inv_gamma(2.3693353, 0.7311319),
   class = sigma_raw_trend
 )
-# AR model prior in Clark et al. 2025 https://github.com/nicholasjclark/portal_VAR/blob/main/2.%20models.R
-# ar_sp_intercept_prior <- prior(std_normal(), class = b)
 
 ar_priors <- c(sigma_prior)
 gam_ar_priors <- c(sigma_prior)
 gam_var_priors <- c(sigma_prior)
 
-trend_formula_PP = ~ s(ndvi_ma12, trend, bs = "re") +
+trend_formula_PP <- ~ s(ndvi_ma12, trend, bs = "re") +
   te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
   te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
   te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr")) +
   te(mintemp, lag, by = weights_pp, k = c(3, 4), bs = c("tp", "cr"))
 
-trend_formula_DX = ~ s(ndvi_ma12, trend, bs = "re") +
+trend_formula_DX <- ~ s(ndvi_ma12, trend, bs = "re") +
   te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
   te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
   te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr"))
@@ -146,8 +169,8 @@ train_starts <- newmoon_min:(newmoon_max - train_win_width - 12 + 1)
 
 # For non-full runs uncomment the lines below and specify desired
 # test starts as newmoonnumbers.
-test_starts = seq(from = 200, to = 400, by = 40)
-train_starts = test_starts - train_win_width
+test_starts <- seq(from = 200, to = 400, by = 40)
+train_starts <- test_starts - train_win_width
 
 run_window <- function(train_start) {
   train_end <- train_start + train_win_width - 1
@@ -165,10 +188,10 @@ run_window <- function(train_start) {
   data_train <- data_split$train
   data_test <- data_split$test
 
-  if("PP" %in% levels(data_split$species_list)) {
-    trend_formula = trend_formula_PP
+  if ("PP" %in% levels(data_split$species_list)) {
+    trend_formula <- trend_formula_PP
   } else {
-    trend_formula = trend_formula_DX
+    trend_formula <- trend_formula_DX
   }
 
   baseline_model <- mvgam(
@@ -225,122 +248,156 @@ run_window <- function(train_start) {
 
   simple_model <- mvgam(
     formula = y ~ -1,
-    trend_formula = ~ te(mintemp_lag_0, delta_mintemp, by = trend, k = 4, bs = "sz") +
+    trend_formula = ~ te(
+      mintemp_lag_0,
+      delta_mintemp,
+      by = trend,
+      k = 4,
+      bs = "sz"
+    ) +
       s(summer_ndvi, by = trend, k = 4) +
       s(winter_ndvi, by = trend, k = 4),
-   data = data_train,
-   newdata = data_test,
-   family = nb(),
-   trend_model = AR(),
-   noncentred = TRUE,
-   burnin = 5000,
-   samples = 2000,
-   silent = 2,
-   refresh = 0,
-   control = list(adapt_delta = 0.95) # Increase from default 0.8 to decrease divergences
- )
+    data = data_train,
+    newdata = data_test,
+    family = nb(),
+    trend_model = AR(),
+    noncentred = TRUE,
+    burnin = 5000,
+    samples = 2000,
+    silent = 2,
+    refresh = 0,
+    control = list(adapt_delta = 0.95) # Increase from default 0.8 to decrease divergences
+  )
 
   baseline_score <- score(forecast(baseline_model), score = "crps")
   baseline_score$test_start_newmoonnumber <- test_start
-  baseline_score$species_list <- paste(data_split$species_list,collapse="_")
-  baseline_score$rhat <- mean(rhat(baseline_model),na.rm=TRUE)
-  baseline_score$prhat_high <- mean(rhat(baseline_model)>1.05,na.rm=TRUE)
+  baseline_score$species_list <- paste(data_split$species_list, collapse = "_")
+  baseline_score$rhat <- mean(rhat(baseline_model), na.rm = TRUE)
+  baseline_score$prhat_high <- mean(rhat(baseline_model) > 1.05, na.rm = TRUE)
   baseline_score$n_divergences <- sum(sapply(
     rstan::get_sampler_params(baseline_model$model_output, inc_warmup = FALSE),
-    function(x) sum(x[, 'divergent__'])))
+    function(x) sum(x[, 'divergent__'])
+  ))
   baseline_summary <- summary(baseline_model)
   baseline_summary$test_start_newmoonnumber <- test_start
-  baseline_summary$species_list <- paste(data_split$species_list,collapse="_")
-  
+  baseline_summary$species_list <- paste(
+    data_split$species_list,
+    collapse = "_"
+  )
+
   baseline_loo <- loo(baseline_model)
   baseline_loo$test_start_newmoonnumber <- test_start
 
   ar_score <- score(forecast(ar_model), score = "crps")
   ar_score$test_start_newmoonnumber <- test_start
-  ar_score$species_list <- paste(data_split$species_list,collapse="_")
-  ar_score$rhat <- mean(rhat(ar_model),na.rm=TRUE)
-  ar_score$prhat_high <- mean(rhat(ar_model)>1.05,na.rm=TRUE)
+  ar_score$species_list <- paste(data_split$species_list, collapse = "_")
+  ar_score$rhat <- mean(rhat(ar_model), na.rm = TRUE)
+  ar_score$prhat_high <- mean(rhat(ar_model) > 1.05, na.rm = TRUE)
   ar_score$n_divergences <- sum(sapply(
     rstan::get_sampler_params(ar_model$model_output, inc_warmup = FALSE),
-    function(x) sum(x[, 'divergent__'])))
+    function(x) sum(x[, 'divergent__'])
+  ))
   ar_summary <- summary(ar_model)
   ar_summary$test_start_newmoonnumber <- test_start
-  ar_summary$species_list <- paste(data_split$species_list,collapse="_")
-  
+  ar_summary$species_list <- paste(data_split$species_list, collapse = "_")
+
   ar_loo <- loo(ar_model)
   ar_loo$test_start_newmoonnumber <- test_start
 
   gam_ar_score <- score(forecast(gam_ar_model), score = "crps")
   gam_ar_score$test_start_newmoonnumber <- test_start
-  gam_ar_score$species_list <- paste(data_split$species_list,collapse="_")
-  gam_ar_score$rhat <- mean(rhat(gam_ar_model),na.rm=TRUE)
-  gam_ar_score$prhat_high <- mean(rhat(gam_ar_model)>1.05,na.rm=TRUE)
+  gam_ar_score$species_list <- paste(data_split$species_list, collapse = "_")
+  gam_ar_score$rhat <- mean(rhat(gam_ar_model), na.rm = TRUE)
+  gam_ar_score$prhat_high <- mean(rhat(gam_ar_model) > 1.05, na.rm = TRUE)
   gam_ar_score$n_divergences <- sum(sapply(
     rstan::get_sampler_params(gam_ar_model$model_output, inc_warmup = FALSE),
-    function(x) sum(x[, 'divergent__'])))
+    function(x) sum(x[, 'divergent__'])
+  ))
   gam_ar_summary <- summary(gam_ar_model)
   gam_ar_summary$test_start_newmoonnumber <- test_start
-  gam_ar_summary$species_list <- paste(data_split$species_list,collapse="_")
-  
+  gam_ar_summary$species_list <- paste(data_split$species_list, collapse = "_")
+
   gam_ar_loo <- loo(gam_ar_model)
   gam_ar_loo$test_start_newmoonnumber <- test_start
 
   gam_var_score <- score(forecast(gam_var_model), score = "crps")
   gam_var_score$test_start_newmoonnumber <- test_start
-  gam_var_score$species_list <- paste(data_split$species_list,collapse="_")
-  gam_var_score$rhat <- mean(rhat(gam_var_model),na.rm=TRUE)
-  gam_var_score$prhat_high <- mean(rhat(gam_var_model)>1.05,na.rm=TRUE)
+  gam_var_score$species_list <- paste(data_split$species_list, collapse = "_")
+  gam_var_score$rhat <- mean(rhat(gam_var_model), na.rm = TRUE)
+  gam_var_score$prhat_high <- mean(rhat(gam_var_model) > 1.05, na.rm = TRUE)
   gam_var_score$n_divergences <- sum(sapply(
     rstan::get_sampler_params(gam_var_model$model_output, inc_warmup = FALSE),
-    function(x) sum(x[, 'divergent__'])))
+    function(x) sum(x[, 'divergent__'])
+  ))
   gam_var_summary <- summary(gam_var_model)
   gam_var_summary$test_start_newmoonnumber <- test_start
-  gam_var_summary$species_list <- paste(data_split$species_list,collapse="_")
-  
+  gam_var_summary$species_list <- paste(data_split$species_list, collapse = "_")
+
   gam_var_loo <- loo(gam_var_model)
   gam_var_loo$test_start_newmoonnumber <- test_start
 
   simple_score <- score(forecast(simple_model), score = "crps")
   simple_score$test_start_newmoonnumber <- test_start
-  simple_score$species_list <- paste(data_split$species_list,collapse="_")
-  simple_score$rhat <- mean(rhat(simple_model),na.rm=TRUE)
-  simple_score$prhat_high <- mean(rhat(simple_model)>1.05,na.rm=TRUE)
+  simple_score$species_list <- paste(data_split$species_list, collapse = "_")
+  simple_score$rhat <- mean(rhat(simple_model), na.rm = TRUE)
+  simple_score$prhat_high <- mean(rhat(simple_model) > 1.05, na.rm = TRUE)
   simple_score$n_divergences <- sum(sapply(
     rstan::get_sampler_params(simple_model$model_output, inc_warmup = FALSE),
-    function(x) sum(x[, 'divergent__'])))
+    function(x) sum(x[, 'divergent__'])
+  ))
   simple_summary <- summary(simple_model)
   simple_summary$test_start_newmoonnumber <- test_start
-  simple_summary$species_list <- paste(data_split$species_list,collapse="_")
-  
+  simple_summary$species_list <- paste(data_split$species_list, collapse = "_")
+
   simple_loo <- loo(simple_model)
   simple_loo$test_start_newmoonnumber <- test_start
 
-  comp_data_train <- bind_cols(species = data_train$series, abundance = data_train$y)
-  comp_data_test <- bind_cols(species = data_test$series, abundance = data_test$y)
-  composition_distance <- get_composition_distance(comp_data_train, comp_data_test, test_start)
-  env_train = data.frame(ndvi=data_train$ndvi, mintemp = data_train$meantemp_lag_1)
-  env_test = data.frame(ndvi=data_test$ndvi, mintemp = data_test$meantemp_lag_1)
+  comp_data_train <- bind_cols(
+    species = data_train$series,
+    abundance = data_train$y
+  )
+  comp_data_test <- bind_cols(
+    species = data_test$series,
+    abundance = data_test$y
+  )
+  composition_distance <- get_composition_distance(
+    comp_data_train,
+    comp_data_test,
+    test_start
+  )
+  env_train <- data.frame(
+    ndvi = data_train$ndvi,
+    mintemp = data_train$meantemp_lag_1
+  )
+  env_test <- data.frame(
+    ndvi = data_test$ndvi,
+    mintemp = data_test$meantemp_lag_1
+  )
   env_distance <- data.frame(enviro_dist = hellinger(env_train, env_test))
   env_distance$test_start_newmoonnumber <- test_start
-  env_distance$species_list <- paste(data_split$species_list,collapse="_")
+  env_distance$species_list <- paste(data_split$species_list, collapse = "_")
 
   source("R/skill_scores.r", local = TRUE)
   source("R/forecast_plots.r", local = TRUE, echo = TRUE)
 
   baseline_summary$model <- "BASELINE"
-  ar_summary$model       <- "AR"
-  gam_ar_summary$model   <- "GAM_AR"
-  gam_var_summary$model  <- "GAM_VAR"
-  simple_summary$model   <- "SIMPLE"
-  
+  ar_summary$model <- "AR"
+  gam_ar_summary$model <- "GAM_AR"
+  gam_var_summary$model <- "GAM_VAR"
+  simple_summary$model <- "SIMPLE"
+
   gc()
 
   list(
     scores = scores,
-    summaries = list(baseline_summary, ar_summary, gam_ar_summary,
-                     gam_var_summary, simple_summary),
-    loos = list(baseline_loo, ar_loo, gam_ar_loo,
-                     gam_var_loo, simple_loo),
+    summaries = list(
+      baseline_summary,
+      ar_summary,
+      gam_ar_summary,
+      gam_var_summary,
+      simple_summary
+    ),
+    loos = list(baseline_loo, ar_loo, gam_ar_loo, gam_var_loo, simple_loo),
     env_distance = env_distance,
     composition_distance = composition_distance
   )
@@ -355,7 +412,9 @@ results <- future_map(
 
 errored <- purrr::map_lgl(results, ~ !is.null(.x$error))
 if (any(errored)) {
-  warning(glue("{sum(errored)} window(s) failed: train_starts {paste(train_starts[errored], collapse=', ')}"))
+  warning(glue(
+    "{sum(errored)} window(s) failed: train_starts {paste(train_starts[errored], collapse=', ')}"
+  ))
 }
 results <- purrr::map(results, "result")
 

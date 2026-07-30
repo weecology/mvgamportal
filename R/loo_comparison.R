@@ -14,17 +14,17 @@ pairwise_comparisons <- map2(loos_ndvi, loos_invndvi, function(mod_a, mod_b) {
 })
 
 loo_ts <- imap_dfr(pairwise_comparisons, function(comp_matrix, element_name) {
-  
+
   comp_df <- as.data.frame(comp_matrix)
   r_names <- rownames(comp_df)
-  
+
   raw_elpd_ndvi    <- comp_df[r_names == "NDVI", "elpd_loo"][1]
   raw_elpd_invndvi <- comp_df[r_names == "Inv_NDVI", "elpd_loo"][1]
-  
+
   se_difference    <- comp_df[2, "se_diff"][1]
 
   elpd_diff_fixed  <- raw_elpd_ndvi - raw_elpd_invndvi
-  
+
   data.frame(
     elpd_diff  = as.numeric(elpd_diff_fixed),
     se_diff    = as.numeric(se_difference),
