@@ -10,6 +10,7 @@ library(furrr)
 library(purrr)
 library(tidyr)
 source("R/get_regime.R")
+source("R/skill_scores.r")
 
 # Set number of workers. Each worker spawns 4 cmdstanr chains, so total
 # cores ~= n_workers * 4. To run on HPC set MVGAM_N_WORKERS environmental
@@ -377,7 +378,14 @@ run_window <- function(train_start) {
   env_distance$test_start_newmoonnumber <- test_start
   env_distance$species_list <- paste(data_split$species_list, collapse = "_")
 
-  source("R/skill_scores.r", local = TRUE)
+  scores <- get_skill_scores(list(
+    BASELINE = baseline_score,
+    AR = ar_score,
+    GAM_AR = gam_ar_score,
+    GAM_VAR = gam_var_score,
+    SIMPLE = simple_score
+  ))
+
   source("R/forecast_plots.r", local = TRUE, echo = TRUE)
 
   baseline_summary$model <- "BASELINE"
