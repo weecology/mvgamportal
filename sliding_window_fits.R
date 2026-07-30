@@ -11,6 +11,15 @@ library(purrr)
 library(tidyr)
 source("R/get_regime.R")
 source("R/skill_scores.r")
+source("R/models.R")
+source("R/forecast_plots.r")
+
+analysis_config <- config::get(file = "config.yaml")
+
+# Models to run, keyed by model name. config.yaml holds the roster and the
+# plotting metadata; R/models.R holds the model definitions.
+model_config <- analysis_config$models
+names(model_config) <- purrr::map_chr(model_config, "name")
 
 # Set number of workers. Each worker spawns 4 cmdstanr chains, so total
 # cores ~= n_workers * 4. To run on HPC set MVGAM_N_WORKERS environmental
@@ -137,41 +146,22 @@ get_composition_distance <- function(
   return(ddhellingerpar(train_prob_vector, test_prob_vector))
 }
 
-# Priors
-
-# sigma_prior <- prior(beta(10, 10), class = sigma, lb = 0.2, ub = 1)
-
-sigma_prior <- c(prior(exponential(5), class = sigma))
-
-ndvi_random_slopes_prior <- prior(
-  inv_gamma(2.3693353, 0.7311319),
-  class = sigma_raw_trend
-)
-
-ar_priors <- c(sigma_prior)
-gam_ar_priors <- c(sigma_prior)
-gam_var_priors <- c(sigma_prior)
-
-trend_formula_PP <- ~ s(ndvi_ma12, trend, bs = "re") +
-  te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
-  te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
-  te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr")) +
-  te(mintemp, lag, by = weights_pp, k = c(3, 4), bs = c("tp", "cr"))
-
-trend_formula_DX <- ~ s(ndvi_ma12, trend, bs = "re") +
-  te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
-  te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
-  te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr"))
-
 newmoon_min <- min(data_all$newmoonnumber)
 newmoon_max <- max(data_all$newmoonnumber)
-train_win_width <- 60
-train_starts <- newmoon_min:(newmoon_max - train_win_width - 12 + 1)
+train_win_width <- analysis_config$train_win_width
 
-# For non-full runs uncomment the lines below and specify desired
-# test starts as newmoonnumbers.
-test_starts <- seq(from = 200, to = 400, by = 40)
-train_starts <- test_starts - train_win_width
+# Run every window that fits in the data unless config.yaml narrows it down
+# to specific test starts (as newmoonnumbers).
+if (is.null(analysis_config$test_starts)) {
+  train_starts <- newmoon_min:(newmoon_max - train_win_width - 12 + 1)
+} else {
+  test_starts <- seq(
+    from = analysis_config$test_starts$from,
+    to = analysis_config$test_starts$to,
+    by = analysis_config$test_starts$by %||% 1
+  )
+  train_starts <- test_starts - train_win_width
+}
 
 run_window <- function(train_start) {
   train_end <- train_start + train_win_width - 1
@@ -189,169 +179,21 @@ run_window <- function(train_start) {
   data_train <- data_split$train
   data_test <- data_split$test
 
-  if ("PP" %in% levels(data_split$species_list)) {
-    trend_formula <- trend_formula_PP
-  } else {
-    trend_formula <- trend_formula_DX
-  }
+  models <- purrr::map(
+    names(model_config),
+    \(model_name) fit_model(model_name, data_train, data_test, data_split$species_list)
+  ) |>
+    purrr::set_names(names(model_config))
 
-  baseline_model <- mvgam(
-    formula = y ~ -1 + series, #remove global intercept and allow species-specific intercepts
-    data = data_train,
-    newdata = data_test,
-    family = poisson(),
-    silent = 2,
-    refresh = 0
+  evaluations <- purrr::imap(
+    models,
+    \(model, model_name) evaluate_model(
+      model,
+      model_name,
+      test_start,
+      data_split$species_list
+    )
   )
-
-  ar_model <- mvgam(
-    formula = y ~ -1 + series,
-    data = data_train,
-    newdata = data_test,
-    family = nb(),
-    trend_model = AR(),
-    priors = ar_priors,
-    burnin = 5000,
-    samples = 2000,
-    silent = 2,
-    refresh = 0
-  )
-
-  gam_ar_model <- mvgam(
-    formula = y ~ -1,
-    trend_formula = trend_formula,
-    data = data_train,
-    newdata = data_test,
-    family = nb(),
-    trend_model = AR(),
-    priors = gam_ar_priors,
-    burnin = 5000,
-    samples = 2000,
-    silent = 2,
-    refresh = 0,
-    control = list(adapt_delta = 0.95) # Increase from default 0.8 to decrease divergences
-  )
-
-  gam_var_model <- mvgam(
-    formula = y ~ -1,
-    trend_formula = trend_formula,
-    data = data_train,
-    newdata = data_test,
-    family = nb(),
-    trend_model = VAR(),
-    priors = gam_var_priors,
-    burnin = 5000,
-    samples = 2000,
-    silent = 2,
-    refresh = 0,
-    control = list(adapt_delta = 0.95)
-  )
-
-  simple_model <- mvgam(
-    formula = y ~ -1,
-    trend_formula = ~ te(
-      mintemp_lag_0,
-      delta_mintemp,
-      by = trend,
-      k = 4,
-      bs = "sz"
-    ) +
-      s(summer_ndvi, by = trend, k = 4) +
-      s(winter_ndvi, by = trend, k = 4),
-    data = data_train,
-    newdata = data_test,
-    family = nb(),
-    trend_model = AR(),
-    noncentred = TRUE,
-    burnin = 5000,
-    samples = 2000,
-    silent = 2,
-    refresh = 0,
-    control = list(adapt_delta = 0.95) # Increase from default 0.8 to decrease divergences
-  )
-
-  baseline_score <- score(forecast(baseline_model), score = "crps")
-  baseline_score$test_start_newmoonnumber <- test_start
-  baseline_score$species_list <- paste(data_split$species_list, collapse = "_")
-  baseline_score$rhat <- mean(rhat(baseline_model), na.rm = TRUE)
-  baseline_score$prhat_high <- mean(rhat(baseline_model) > 1.05, na.rm = TRUE)
-  baseline_score$n_divergences <- sum(sapply(
-    rstan::get_sampler_params(baseline_model$model_output, inc_warmup = FALSE),
-    function(x) sum(x[, 'divergent__'])
-  ))
-  baseline_summary <- summary(baseline_model)
-  baseline_summary$test_start_newmoonnumber <- test_start
-  baseline_summary$species_list <- paste(
-    data_split$species_list,
-    collapse = "_"
-  )
-
-  baseline_loo <- loo(baseline_model)
-  baseline_loo$test_start_newmoonnumber <- test_start
-
-  ar_score <- score(forecast(ar_model), score = "crps")
-  ar_score$test_start_newmoonnumber <- test_start
-  ar_score$species_list <- paste(data_split$species_list, collapse = "_")
-  ar_score$rhat <- mean(rhat(ar_model), na.rm = TRUE)
-  ar_score$prhat_high <- mean(rhat(ar_model) > 1.05, na.rm = TRUE)
-  ar_score$n_divergences <- sum(sapply(
-    rstan::get_sampler_params(ar_model$model_output, inc_warmup = FALSE),
-    function(x) sum(x[, 'divergent__'])
-  ))
-  ar_summary <- summary(ar_model)
-  ar_summary$test_start_newmoonnumber <- test_start
-  ar_summary$species_list <- paste(data_split$species_list, collapse = "_")
-
-  ar_loo <- loo(ar_model)
-  ar_loo$test_start_newmoonnumber <- test_start
-
-  gam_ar_score <- score(forecast(gam_ar_model), score = "crps")
-  gam_ar_score$test_start_newmoonnumber <- test_start
-  gam_ar_score$species_list <- paste(data_split$species_list, collapse = "_")
-  gam_ar_score$rhat <- mean(rhat(gam_ar_model), na.rm = TRUE)
-  gam_ar_score$prhat_high <- mean(rhat(gam_ar_model) > 1.05, na.rm = TRUE)
-  gam_ar_score$n_divergences <- sum(sapply(
-    rstan::get_sampler_params(gam_ar_model$model_output, inc_warmup = FALSE),
-    function(x) sum(x[, 'divergent__'])
-  ))
-  gam_ar_summary <- summary(gam_ar_model)
-  gam_ar_summary$test_start_newmoonnumber <- test_start
-  gam_ar_summary$species_list <- paste(data_split$species_list, collapse = "_")
-
-  gam_ar_loo <- loo(gam_ar_model)
-  gam_ar_loo$test_start_newmoonnumber <- test_start
-
-  gam_var_score <- score(forecast(gam_var_model), score = "crps")
-  gam_var_score$test_start_newmoonnumber <- test_start
-  gam_var_score$species_list <- paste(data_split$species_list, collapse = "_")
-  gam_var_score$rhat <- mean(rhat(gam_var_model), na.rm = TRUE)
-  gam_var_score$prhat_high <- mean(rhat(gam_var_model) > 1.05, na.rm = TRUE)
-  gam_var_score$n_divergences <- sum(sapply(
-    rstan::get_sampler_params(gam_var_model$model_output, inc_warmup = FALSE),
-    function(x) sum(x[, 'divergent__'])
-  ))
-  gam_var_summary <- summary(gam_var_model)
-  gam_var_summary$test_start_newmoonnumber <- test_start
-  gam_var_summary$species_list <- paste(data_split$species_list, collapse = "_")
-
-  gam_var_loo <- loo(gam_var_model)
-  gam_var_loo$test_start_newmoonnumber <- test_start
-
-  simple_score <- score(forecast(simple_model), score = "crps")
-  simple_score$test_start_newmoonnumber <- test_start
-  simple_score$species_list <- paste(data_split$species_list, collapse = "_")
-  simple_score$rhat <- mean(rhat(simple_model), na.rm = TRUE)
-  simple_score$prhat_high <- mean(rhat(simple_model) > 1.05, na.rm = TRUE)
-  simple_score$n_divergences <- sum(sapply(
-    rstan::get_sampler_params(simple_model$model_output, inc_warmup = FALSE),
-    function(x) sum(x[, 'divergent__'])
-  ))
-  simple_summary <- summary(simple_model)
-  simple_summary$test_start_newmoonnumber <- test_start
-  simple_summary$species_list <- paste(data_split$species_list, collapse = "_")
-
-  simple_loo <- loo(simple_model)
-  simple_loo$test_start_newmoonnumber <- test_start
 
   comp_data_train <- bind_cols(
     species = data_train$series,
@@ -378,34 +220,22 @@ run_window <- function(train_start) {
   env_distance$test_start_newmoonnumber <- test_start
   env_distance$species_list <- paste(data_split$species_list, collapse = "_")
 
-  scores <- get_skill_scores(list(
-    BASELINE = baseline_score,
-    AR = ar_score,
-    GAM_AR = gam_ar_score,
-    GAM_VAR = gam_var_score,
-    SIMPLE = simple_score
-  ))
+  scores <- get_skill_scores(purrr::map(evaluations, "score"))
 
-  source("R/forecast_plots.r", local = TRUE, echo = TRUE)
-
-  baseline_summary$model <- "BASELINE"
-  ar_summary$model <- "AR"
-  gam_ar_summary$model <- "GAM_AR"
-  gam_var_summary$model <- "GAM_VAR"
-  simple_summary$model <- "SIMPLE"
+  plot_window_forecasts(
+    models,
+    model_config,
+    scores,
+    data_split$species_list,
+    test_start
+  )
 
   gc()
 
   list(
     scores = scores,
-    summaries = list(
-      baseline_summary,
-      ar_summary,
-      gam_ar_summary,
-      gam_var_summary,
-      simple_summary
-    ),
-    loos = list(baseline_loo, ar_loo, gam_ar_loo, gam_var_loo, simple_loo),
+    summaries = purrr::map(evaluations, "summary"),
+    loos = purrr::map(evaluations, "loo"),
     env_distance = env_distance,
     composition_distance = composition_distance
   )

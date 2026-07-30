@@ -1,5 +1,6 @@
 library(ggplot2)
 library(cowplot)
+library(dplyr)
 
 forecast_plot <- function(model, model_name, model_scores, species_list, test_start) {
 p1<-tryCatch({plot(forecast(model), series=1)}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
@@ -16,47 +17,56 @@ bottomrow<-plot_grid(p5,p6,p8,nrow=1)
 plot_grid(top2rows,bottomrow,ncol=1,nrow=2,rel_heights = c(.67,.33))
 }
 
-png(paste0("figures/baseline_",test_start,".png"), width = 1500, height = 1000)
-forecast_plot(baseline_model,"Baseline",filter(scores, model == "BASELINE"),data_split$species_list,test_start)
-dev.off()
+trace_plot <- function(model, trace_config) {
+  tryCatch(
+    {
+      if (is.null(trace_config$variable)) {
+        mcmc_plot(model, type = 'trace')
+      } else {
+        mcmc_plot(model, type = 'trace', variable = trace_config$variable)
+      }
+    },
+    error = function(e) {
+      message("An error occurred during plotting or saving: ", e$message)
+    }
+  )
+}
 
-png(paste0("figures/ar_",test_start,".png"), width = 1500, height = 1000)
-forecast_plot(ar_model,"AR",filter(scores, model == "AR"),data_split$species_list,test_start)
-dev.off()
+# Write a forecast panel per fitted model, plus an MCMC trace plot for the
+# models whose config.yaml entry includes a `trace_plot` block.
+plot_window_forecasts <- function(
+  models,
+  model_config,
+  scores,
+  species_list,
+  test_start
+) {
+  for (model_name in names(models)) {
+    model_conf <- model_config[[model_name]]
 
-png(paste0("figures/gamar_",test_start,".png"), width = 1500, height = 1000)
-forecast_plot(gam_ar_model,"GAM AR",filter(scores, model == "GAM_AR"),data_split$species_list,test_start)
-dev.off()
+    png(
+      paste0("figures/", model_conf$figure_prefix, "_", test_start, ".png"),
+      width = 1500,
+      height = 1000
+    )
+    # print() is required: plots built inside a function are not auto-printed
+    print(forecast_plot(
+      models[[model_name]],
+      model_conf$label,
+      filter(scores, model == model_name),
+      species_list,
+      test_start
+    ))
+    dev.off()
 
-png(paste0("figures/gamvar_",test_start,".png"), width = 1500, height = 1000)
-forecast_plot(gam_var_model,"GAM VAR",filter(scores, model == "GAM_VAR"),data_split$species_list,test_start)
-dev.off()
-
-png(paste0("figures/simple_",test_start,".png"), width = 1500, height = 1000)
-forecast_plot(simple_model,"SIMPLE",filter(scores, model == "SIMPLE"),data_split$species_list,test_start)
-dev.off()
-
-png(paste0("figures/ar_trace_",test_start,".png"), width = 1500, height = 1500)
-mcmc_plot(ar_model, type = 'trace')
-dev.off()
-
-png(paste0("figures/gamar_trace_",test_start,".png"), width = 1500, height = 1500)
-tryCatch({mcmc_plot(gam_ar_model, type = 'trace')}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
-dev.off()
-
-png(paste0("figures/gamvar_trace_",test_start,".png"), width = 2000, height = 2000)
-tryCatch({mcmc_plot(gam_var_model, type = 'trace', variable = 'trend_params')}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
-dev.off()
-
-png(paste0("figures/simple_trace_",test_start,".png"), width = 1500, height = 1500)
-tryCatch({mcmc_plot(simple_model, type = 'trace')}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
-dev.off()
-
-# mcmc_plot(
-#   object = gam_var_model,
-#   variable = "trend",
-#   regex=TRUE,
-#   type = "areas"
-# )
-#
-# mcmc_plot(gam_ar_model, type = 'intervals')
+    if (!is.null(model_conf$trace_plot)) {
+      png(
+        paste0("figures/", model_conf$figure_prefix, "_trace_", test_start, ".png"),
+        width = model_conf$trace_plot$width,
+        height = model_conf$trace_plot$height
+      )
+      print(trace_plot(models[[model_name]], model_conf$trace_plot))
+      dev.off()
+    }
+  }
+}
