@@ -17,6 +17,7 @@ source("R/forecast_plots.r")
 analysis_config <- config::get(file = "config.yaml")
 model_config <- analysis_config$models
 names(model_config) <- purrr::map_chr(model_config, "name")
+check_model_definitions(names(model_config))
 
 # Set number of workers. Each worker spawns 4 cmdstanr chains, so total
 # cores ~= n_workers * 4. To run on HPC set MVGAM_N_WORKERS environmental

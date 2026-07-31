@@ -1,7 +1,16 @@
 library(mvgam)
 
-# Model definitions and output handling for the sliding window analysis.
+# Shared model settings and output handling for the sliding window analysis.
 # Which models are run is set in config.yaml.
+#
+# Each model lives in its own file in R/models/, which defines a single
+# fit_<NAME>() function. To add a model: write R/models/<NAME>.R defining
+# fit_<NAME>(data_train, data_test, species_list), add a branch to fit_model()
+# below, and add <NAME> to the models list in config.yaml.
+invisible(lapply(
+  list.files("R/models", pattern = "\\.R$", full.names = TRUE),
+  source
+))
 
 # Priors
 
@@ -38,82 +47,31 @@ get_trend_formula <- function(species_list) {
 }
 
 fit_model <- function(model_name, data_train, data_test, species_list) {
-  trend_formula <- get_trend_formula(species_list)
-
   switch(
     model_name,
-    BASELINE = mvgam(
-      formula = y ~ -1 + series, #remove global intercept and allow species-specific intercepts
-      data = data_train,
-      newdata = data_test,
-      family = poisson(),
-      silent = 2,
-      refresh = 0
-    ),
-    AR = mvgam(
-      formula = y ~ -1 + series,
-      data = data_train,
-      newdata = data_test,
-      family = nb(),
-      trend_model = AR(),
-      priors = ar_priors,
-      burnin = 5000,
-      samples = 2000,
-      silent = 2,
-      refresh = 0
-    ),
-    GAM_AR = mvgam(
-      formula = y ~ -1,
-      trend_formula = trend_formula,
-      data = data_train,
-      newdata = data_test,
-      family = nb(),
-      trend_model = AR(),
-      priors = gam_ar_priors,
-      burnin = 5000,
-      samples = 2000,
-      silent = 2,
-      refresh = 0,
-      control = list(adapt_delta = 0.95) # Increase from default 0.8 to decrease divergences
-    ),
-    GAM_VAR = mvgam(
-      formula = y ~ -1,
-      trend_formula = trend_formula,
-      data = data_train,
-      newdata = data_test,
-      family = nb(),
-      trend_model = VAR(),
-      priors = gam_var_priors,
-      burnin = 5000,
-      samples = 2000,
-      silent = 2,
-      refresh = 0,
-      control = list(adapt_delta = 0.95)
-    ),
-    SIMPLE = mvgam(
-      formula = y ~ -1,
-      trend_formula = ~ te(
-        mintemp_lag_0,
-        delta_mintemp,
-        by = trend,
-        k = 4,
-        bs = "sz"
-      ) +
-        s(summer_ndvi, by = trend, k = 4) +
-        s(winter_ndvi, by = trend, k = 4),
-      data = data_train,
-      newdata = data_test,
-      family = nb(),
-      trend_model = AR(),
-      noncentred = TRUE,
-      burnin = 5000,
-      samples = 2000,
-      silent = 2,
-      refresh = 0,
-      control = list(adapt_delta = 0.95) # Increase from default 0.8 to decrease divergences
-    ),
-    stop(glue::glue("No model definition for '{model_name}' in fit_model()"))
+    BASELINE = fit_BASELINE(data_train, data_test, species_list),
+    AR = fit_AR(data_train, data_test, species_list),
+    GAM_AR = fit_GAM_AR(data_train, data_test, species_list),
+    GAM_VAR = fit_GAM_VAR(data_train, data_test, species_list),
+    SIMPLE = fit_SIMPLE(data_train, data_test, species_list),
+    stop(glue::glue("No fit_model() branch for model '{model_name}'"))
   )
+}
+
+# Fail at startup rather than mid-run when a configured model has no
+# R/models/<NAME>.R file defining fit_<NAME>().
+check_model_definitions <- function(model_names) {
+  undefined <- model_names[
+    !purrr::map_lgl(paste0("fit_", model_names), exists, mode = "function")
+  ]
+  if (length(undefined) > 0) {
+    stop(glue::glue(
+      "No fit function for model(s) {paste(undefined, collapse = ', ')}. ",
+      "Each needs R/models/<NAME>.R defining fit_<NAME>() ",
+      "and a branch in fit_model()."
+    ))
+  }
+  invisible(model_names)
 }
 
 # Score, summarize and LOO a fitted model, tagging each output with the window
