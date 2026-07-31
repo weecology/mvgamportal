@@ -1,8 +1,7 @@
 library(mvgam)
 
 # Model definitions and output handling for the sliding window analysis.
-# Which of these models actually get run is set in config.yaml; every `name`
-# listed there must have a matching branch in fit_model() below.
+# Which models are run is set in config.yaml.
 
 # Priors
 

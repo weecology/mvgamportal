@@ -15,9 +15,6 @@ source("R/models.R")
 source("R/forecast_plots.r")
 
 analysis_config <- config::get(file = "config.yaml")
-
-# Models to run, keyed by model name. config.yaml holds the roster and the
-# plotting metadata; R/models.R holds the model definitions.
 model_config <- analysis_config$models
 names(model_config) <- purrr::map_chr(model_config, "name")
 
@@ -150,8 +147,7 @@ newmoon_min <- min(data_all$newmoonnumber)
 newmoon_max <- max(data_all$newmoonnumber)
 train_win_width <- analysis_config$train_win_width
 
-# Run every window that fits in the data unless config.yaml narrows it down
-# to specific test starts (as newmoonnumbers).
+# Run all possible windows unless limited by config.yaml
 if (is.null(analysis_config$test_starts)) {
   train_starts <- newmoon_min:(newmoon_max - train_win_width - 12 + 1)
 } else {
@@ -263,11 +259,7 @@ env_distances <- purrr::map(results, "env_distance")
 composition_distances <- purrr::map(results, "composition_distance")
 
 saveRDS(scores, "scores.rds")
-#saveRDS(summaries, "summaries.rds")
+saveRDS(summaries, "summaries.rds")
 saveRDS(loos, "loos.rds")
 saveRDS(env_distances, "env_distances.rds")
 saveRDS(composition_distances, "composition_distances.rds")
-
-# scores <- readRDS("scores.rds")
-# summaries <- readRDS("summaries.rds")
-# env_distances <- readRDS("env_distances.rds")

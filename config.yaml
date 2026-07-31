@@ -5,7 +5,7 @@
 # figures/.
 #
 # `trace_plot: yes` writes an MCMC trace plot for every model; set it to no
-# (or omit it) to skip them.
+# to skip them.
 #
 # BASELINE is the reference model that skill scores are computed against, so
 # it should stay in this list unless skill scores are not needed.
