@@ -17,14 +17,10 @@ bottomrow<-plot_grid(p5,p6,p8,nrow=1)
 plot_grid(top2rows,bottomrow,ncol=1,nrow=2,rel_heights = c(.67,.33))
 }
 
-trace_plot <- function(model, trace_config) {
+trace_plot <- function(model) {
   tryCatch(
     {
-      if (is.null(trace_config$variable)) {
-        mcmc_plot(model, type = 'trace')
-      } else {
-        mcmc_plot(model, type = 'trace', variable = trace_config$variable)
-      }
+      mcmc_plot(model, type = 'trace')
     },
     error = function(e) {
       message("An error occurred during plotting or saving: ", e$message)
@@ -32,40 +28,38 @@ trace_plot <- function(model, trace_config) {
   )
 }
 
-# Write a forecast panel per fitted model, plus an MCMC trace plot for the
-# models whose config.yaml entry includes a `trace_plot` block.
+# Write a forecast panel per fitted model, plus an MCMC trace plot per model
+# when trace_plots is TRUE.
 plot_window_forecasts <- function(
   models,
-  model_config,
   scores,
   species_list,
-  test_start
+  test_start,
+  trace_plots = TRUE
 ) {
   for (model_name in names(models)) {
-    model_conf <- model_config[[model_name]]
-
     png(
-      paste0("figures/", model_conf$figure_prefix, "_", test_start, ".png"),
+      paste0("figures/", model_name, "_", test_start, ".png"),
       width = 1500,
       height = 1000
     )
     # print() is required: plots built inside a function are not auto-printed
     print(forecast_plot(
       models[[model_name]],
-      model_conf$label,
+      model_name,
       filter(scores, model == model_name),
       species_list,
       test_start
     ))
     dev.off()
 
-    if (!is.null(model_conf$trace_plot)) {
+    if (trace_plots) {
       png(
-        paste0("figures/", model_conf$figure_prefix, "_trace_", test_start, ".png"),
-        width = model_conf$trace_plot$width,
-        height = model_conf$trace_plot$height
+        paste0("figures/", model_name, "_trace_", test_start, ".png"),
+        width = 1500,
+        height = 1500
       )
-      print(trace_plot(models[[model_name]], model_conf$trace_plot))
+      print(trace_plot(models[[model_name]]))
       dev.off()
     }
   }

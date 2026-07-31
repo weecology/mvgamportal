@@ -224,10 +224,10 @@ run_window <- function(train_start) {
 
   plot_window_forecasts(
     models,
-    model_config,
     scores,
     data_split$species_list,
-    test_start
+    test_start,
+    trace_plots = analysis_config$trace_plot
   )
 
   gc()
