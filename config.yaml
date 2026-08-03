@@ -1,0 +1,35 @@
+# Configuration for sliding_window_fits.R, read with config::get().
+#
+# Each `name` under models must have a matching branch in fit_model() in
+# R/models.R. The name is also used to label and name the plots written to
+# figures/.
+#
+# `trace_plot: yes` writes an MCMC trace plot for every model; set it to no
+# to skip them.
+#
+# BASELINE is the reference model that skill scores are computed against, so
+# it should stay in this list unless skill scores are not needed.
+default:
+  # Length of the training window, in newmoons.
+  train_win_width: 60
+
+  # Write an MCMC trace plot per model alongside the forecast plots.
+  trace_plot: no
+
+  # Which forecast windows to run, as newmoonnumbers passed to seq().
+  # Omit this block entirely to run every window that fits in the data.
+  test_starts:
+    from: 200
+    to: 400
+    by: 40
+
+  models:
+    - name: BASELINE
+
+    - name: AR
+
+    - name: GAM_AR
+
+    - name: GAM_VAR
+
+    - name: SIMPLE
