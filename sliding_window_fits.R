@@ -19,6 +19,51 @@ model_config <- analysis_config$models
 names(model_config) <- purrr::map_chr(model_config, "name")
 check_model_definitions(names(model_config))
 
+# Turn the configured species groups into one entry per set of species that
+# gets fit together. A group with `separately` becomes one entry per species,
+# labelled by species name rather than by group name.
+expand_species_sets <- function(species_sets, all_species) {
+  expanded <- purrr::flatten(purrr::map(species_sets, function(species_set) {
+    species <- species_set$species %||% all_species
+    if (!is.null(species_set$separately)) {
+      purrr::map(species, \(focal_species) list(
+        name = focal_species,
+        group = species_set$name,
+        species = focal_species,
+        separately = TRUE
+      ))
+    } else {
+      list(list(
+        name = species_set$name,
+        group = species_set$name,
+        species = species,
+        separately = FALSE
+      ))
+    }
+  }))
+
+  purrr::set_names(expanded, purrr::map_chr(expanded, "name"))
+}
+
+# Convert config info into models to be run.
+# One model per model name (from config) per species group.
+# Models name the groups from config.yaml and`separately` expands
+# into one run per species.
+build_run_plan <- function(model_config, species_sets) {
+  groups <- purrr::map_chr(species_sets, "group")
+  purrr::flatten(purrr::map(model_config, function(model) {
+    set_names <- names(species_sets)[
+      groups %in% (model$species_sets %||% groups)
+    ]
+    purrr::map(set_names, \(set_name) list(
+      model = model$name,
+      species_set = set_name,
+      separately = species_sets[[set_name]]$separately,
+      label = paste(model$name, set_name, sep = "_")
+    ))
+  }))
+}
+
 # Set number of workers. Each worker spawns 4 cmdstanr chains, so total
 # cores ~= n_workers * 4. To run on HPC set MVGAM_N_WORKERS environmental
 # variable based on number of requested cores
@@ -27,20 +72,36 @@ plan(multisession, workers = n_workers / 4)
 
 data_all <- readRDS("data_heteromyid.rds")
 
+species_sets <- expand_species_sets(
+  analysis_config$species_sets,
+  levels(data_all$series)
+)
+run_plan <- build_run_plan(model_config, species_sets)
+
+# Drop species group groups that no model in the config uses
+# This prevents their splits and distances from being computed for no reason
+species_sets <- species_sets[unique(purrr::map_chr(run_plan, "species_set"))]
+
 split_train_test <- function(
   data_all,
   gap,
   train_start,
   train_end,
   test_start,
-  test_end
+  test_end,
+  species = NULL
 ) {
+  species <- species %||% levels(data_all$series)
   species_list <- data.frame(
     newmoonnumber = data_all$newmoonnumber,
     series = data_all$series,
     y = data_all$y
   ) |>
-    filter(newmoonnumber >= train_start, newmoonnumber <= (train_end)) |>
+    filter(
+      newmoonnumber >= train_start,
+      newmoonnumber <= (train_end),
+      series %in% species
+    ) |>
     group_by(newmoonnumber, series) |>
     summarise(abundance = sum(y, na.rm = TRUE), .groups = 'drop') |>
     group_by(series) |>
@@ -165,67 +226,93 @@ run_window <- function(train_start) {
   test_start <- train_end + 1
   test_end <- test_start + 12 - 1
   print(glue("Training test start {test_start} (newmoon)"))
-  data_split <- split_train_test(
+
+  data_splits <- purrr::map(species_sets, \(species_set) split_train_test(
     data_all,
     gap = 0,
     train_start = train_start,
     train_end = train_end,
     test_start = test_start,
-    test_end = test_end
-  )
-  data_train <- data_split$train
-  data_test <- data_split$test
+    test_end = test_end,
+    species = species_set$species
+  ))
 
-  models <- purrr::map(
-    names(model_config),
-    \(model_name) fit_model(model_name, data_train, data_test, data_split$species_list)
-  ) |>
-    purrr::set_names(names(model_config))
-
-  evaluations <- purrr::imap(
-    models,
-    \(model, model_name) evaluate_model(
+  # Fit, evaluate and plot one run at a time so that only a single model is
+  # held in memory at once
+  evaluations <- purrr::map(run_plan, function(run) {
+    data_split <- data_splits[[run$species_set]]
+    model <- fit_model(
+      run$model,
+      data_split$train,
+      data_split$test,
+      data_split$species_list
+    )
+    evaluation <- evaluate_model(
       model,
-      model_name,
+      run$model,
+      run$species_set,
       test_start,
       data_split$species_list
     )
-  )
+    plot_run_forecasts(
+      model,
+      run$label,
+      tidy_score(evaluation$score, run$model, run$separately),
+      data_split$species_list,
+      test_start,
+      trace_plots = analysis_config$trace_plot
+    )
+    rm(model)
+    gc()
+    evaluation
+  }) |>
+    purrr::set_names(purrr::map_chr(run_plan, "label"))
 
-  comp_data_train <- bind_cols(
-    species = data_train$series,
-    abundance = data_train$y
-  )
-  comp_data_test <- bind_cols(
-    species = data_test$series,
-    abundance = data_test$y
-  )
-  composition_distance <- get_composition_distance(
-    comp_data_train,
-    comp_data_test,
-    test_start
-  )
-  env_train <- data.frame(
-    ndvi = data_train$ndvi,
-    mintemp = data_train$meantemp_lag_1
-  )
-  env_test <- data.frame(
-    ndvi = data_test$ndvi,
-    mintemp = data_test$meantemp_lag_1
-  )
-  env_distance <- data.frame(enviro_dist = hellinger(env_train, env_test))
-  env_distance$test_start_newmoonnumber <- test_start
-  env_distance$species_list <- paste(data_split$species_list, collapse = "_")
+  distances <- purrr::imap(data_splits, function(data_split, set_name) {
+    data_train <- data_split$train
+    data_test <- data_split$test
+    species_str <- paste(data_split$species_list, collapse = "_")
 
-  scores <- get_skill_scores(purrr::map(evaluations, "score"))
+    comp_data_train <- bind_cols(
+      species = data_train$series,
+      abundance = data_train$y
+    )
+    comp_data_test <- bind_cols(
+      species = data_test$series,
+      abundance = data_test$y
+    )
+    composition_distance <- data.frame(
+      comp_dist = get_composition_distance(
+        comp_data_train,
+        comp_data_test,
+        test_start
+      )
+    )
+    composition_distance$test_start_newmoonnumber <- test_start
+    composition_distance$species_set <- set_name
+    composition_distance$species_list <- species_str
 
-  plot_window_forecasts(
-    models,
-    scores,
-    data_split$species_list,
-    test_start,
-    trace_plots = analysis_config$trace_plot
-  )
+    env_train <- data.frame(
+      ndvi = data_train$ndvi,
+      mintemp = data_train$meantemp_lag_1
+    )
+    env_test <- data.frame(
+      ndvi = data_test$ndvi,
+      mintemp = data_test$meantemp_lag_1
+    )
+    env_distance <- data.frame(enviro_dist = hellinger(env_train, env_test))
+    env_distance$test_start_newmoonnumber <- test_start
+    env_distance$species_set <- set_name
+    env_distance$species_list <- species_str
+
+    list(composition = composition_distance, env = env_distance)
+  })
+
+  # Keyed by model rather than run label so BASELINE is recognisable; runs are
+  # kept apart by the species_set column carried on each score
+  scores <- purrr::map(evaluations, "score") |>
+    purrr::set_names(purrr::map_chr(run_plan, "model")) |>
+    get_skill_scores(purrr::map_lgl(run_plan, "separately"))
 
   gc()
 
@@ -233,8 +320,8 @@ run_window <- function(train_start) {
     scores = scores,
     summaries = purrr::map(evaluations, "summary"),
     loos = purrr::map(evaluations, "loo"),
-    env_distance = env_distance,
-    composition_distance = composition_distance
+    env_distance = purrr::map_dfr(distances, "env"),
+    composition_distance = purrr::map_dfr(distances, "composition")
   )
 }
 
@@ -242,6 +329,7 @@ safe_run_window <- purrr::safely(run_window)
 results <- future_map(
   train_starts,
   safe_run_window,
+  .progress = TRUE,
   .options = furrr_options(seed = TRUE)
 )
 
