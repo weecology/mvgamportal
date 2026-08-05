@@ -27,23 +27,28 @@ ar_priors <- c(sigma_prior)
 gam_ar_priors <- c(sigma_prior)
 gam_var_priors <- c(sigma_prior)
 
-trend_formula_PP <- ~ s(ndvi_ma12, trend, bs = "re") +
-  te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
-  te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
-  te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr")) +
-  te(mintemp, lag, by = weights_pp, k = c(3, 4), bs = c("tp", "cr"))
+# Species given their own temperature response on top of the shared one. Only
+# those also present in the window get a term.
+weighted_species <- c("DM", "DO", "PP")
 
-trend_formula_DX <- ~ s(ndvi_ma12, trend, bs = "re") +
-  te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr")) +
-  te(mintemp, lag, by = weights_dm, k = c(3, 4), bs = c("tp", "cr")) +
-  te(mintemp, lag, by = weights_do, k = c(3, 4), bs = c("tp", "cr"))
-
+# Built per window because which species are present varies. A single-species
+# window gets no by-species terms, since the shared term already describes it.
 get_trend_formula <- function(species_list) {
-  if ("PP" %in% levels(species_list)) {
-    trend_formula_PP
+  species <- levels(species_list)
+  weighted <- if (length(species) > 1) {
+    intersect(weighted_species, species)
   } else {
-    trend_formula_DX
+    character(0)
   }
+
+  reformulate(c(
+    's(ndvi_ma12, trend, bs = "re")',
+    'te(mintemp, lag, k = c(3, 4), bs = c("tp", "cr"))',
+    glue::glue(
+      'te(mintemp, lag, by = weights_{tolower(weighted)}, ',
+      'k = c(3, 4), bs = c("tp", "cr"))'
+    )
+  ))
 }
 
 fit_model <- function(model_name, data_train, data_test, species_list) {
@@ -51,6 +56,11 @@ fit_model <- function(model_name, data_train, data_test, species_list) {
     model_name,
     BASELINE = fit_BASELINE(data_train, data_test, species_list),
     AR = fit_AR(data_train, data_test, species_list),
+    AR_SINGLE_SPECIES = fit_AR_SINGLE_SPECIES(
+      data_train,
+      data_test,
+      species_list
+    ),
     GAM_AR = fit_GAM_AR(data_train, data_test, species_list),
     GAM_VAR = fit_GAM_VAR(data_train, data_test, species_list),
     SIMPLE = fit_SIMPLE(data_train, data_test, species_list),
@@ -76,12 +86,19 @@ check_model_definitions <- function(model_names) {
 
 # Score, summarize and LOO a fitted model, tagging each output with the window
 # and species it came from so results can be combined across windows.
-evaluate_model <- function(model, model_name, test_start, species_list) {
+evaluate_model <- function(
+  model,
+  model_name,
+  species_set,
+  test_start,
+  species_list
+) {
   species_str <- paste(species_list, collapse = "_")
   rhats <- rhat(model)
 
   model_score <- score(forecast(model), score = "crps")
   model_score$test_start_newmoonnumber <- test_start
+  model_score$species_set <- species_set
   model_score$species_list <- species_str
   model_score$rhat <- mean(rhats, na.rm = TRUE)
   model_score$prhat_high <- mean(rhats > 1.05, na.rm = TRUE)
@@ -92,11 +109,13 @@ evaluate_model <- function(model, model_name, test_start, species_list) {
 
   model_summary <- summary(model)
   model_summary$test_start_newmoonnumber <- test_start
+  model_summary$species_set <- species_set
   model_summary$species_list <- species_str
   model_summary$model <- model_name
 
   model_loo <- loo(model)
   model_loo$test_start_newmoonnumber <- test_start
+  model_loo$species_set <- species_set
 
   list(score = model_score, summary = model_summary, loo = model_loo)
 }

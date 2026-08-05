@@ -3,9 +3,9 @@ library(cowplot)
 library(dplyr)
 
 forecast_plot <- function(model, model_name, model_scores, species_list, test_start) {
-p1<-tryCatch({plot(forecast(model), series=1)}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
-p2<-tryCatch({plot(forecast(model), series=2)}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)}) + ggtitle(paste(model_name,test_start)) + theme(plot.title = element_text(hjust = 0.5))
-p3<-tryCatch({plot(forecast(model), series=3)}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
+p1<-tryCatch({plot(forecast(model), series=1)}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)}) + ggtitle(paste(model_name,test_start)) + theme(plot.title = element_text(hjust = 0.5))
+p2<-tryCatch({if(length(species_list)>1) {plot(forecast(model), series=2)} else {NULL}}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
+p3<-tryCatch({if(length(species_list)>2) {plot(forecast(model), series=3)} else {NULL}}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
 p4<-tryCatch({if(length(species_list)>3) {plot(forecast(model), series=4)} else {NULL}}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
 p5<-tryCatch({if(length(species_list)>4) {plot(forecast(model), series=5)} else {NULL}}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
 p6<-tryCatch({if(length(species_list)>5) {plot(forecast(model), series=6)} else {NULL}}, error = function(e) {message("An error occurred during plotting or saving: ", e$message)})
@@ -28,39 +28,39 @@ trace_plot <- function(model) {
   )
 }
 
-# Write a forecast panel per fitted model, plus an MCMC trace plot per model
-# when trace_plots is TRUE.
-plot_window_forecasts <- function(
-  models,
-  scores,
+# Write the forecast panel for one fitted model, plus an MCMC trace plot when
+# trace_plots is TRUE. run_label identifies the model and the species group it
+# was fit to, and names the files.
+plot_run_forecasts <- function(
+  model,
+  run_label,
+  model_scores,
   species_list,
   test_start,
   trace_plots = TRUE
 ) {
-  for (model_name in names(models)) {
-    png(
-      paste0("figures/", model_name, "_", test_start, ".png"),
-      width = 1500,
-      height = 1000
-    )
-    # print() is required: plots built inside a function are not auto-printed
-    print(forecast_plot(
-      models[[model_name]],
-      model_name,
-      filter(scores, model == model_name),
-      species_list,
-      test_start
-    ))
-    dev.off()
+  png(
+    paste0("figures/", run_label, "_", test_start, ".png"),
+    width = 1500,
+    height = 1000
+  )
+  # print() is required: plots built inside a function are not auto-printed
+  print(forecast_plot(
+    model,
+    run_label,
+    model_scores,
+    species_list,
+    test_start
+  ))
+  dev.off()
 
-    if (trace_plots) {
-      png(
-        paste0("figures/", model_name, "_trace_", test_start, ".png"),
-        width = 1500,
-        height = 1500
-      )
-      print(trace_plot(models[[model_name]]))
-      dev.off()
-    }
+  if (trace_plots) {
+    png(
+      paste0("figures/", run_label, "_trace_", test_start, ".png"),
+      width = 1500,
+      height = 1500
+    )
+    print(trace_plot(model))
+    dev.off()
   }
 }

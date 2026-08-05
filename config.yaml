@@ -20,16 +20,35 @@ default:
   # Omit this block entirely to run every window that fits in the data.
   test_starts:
     from: 200
-    to: 400
+    to: 500
     by: 40
 
+  # Groups of species to fit models to. Omit `species` to use every species in
+  # the data. `separately: yes` fits one model per species in the list instead
+  # of a single model over all of them together, and each of those runs is
+  # labelled with its species name rather than the group name.
+  species_sets:
+    - name: all
+
+    - name: single
+      species: [DM]
+      separately: yes
+
+  # `species_sets` lists which of the groups above to fit each model to; omit
+  # it to fit that model to every group. Note VAR() needs more than one
+  # species, so GAM_VAR cannot be run on a single-species group.
   models:
     - name: BASELINE
+      species_sets: [single]
 
-    - name: AR
+    - name: AR_SINGLE_SPECIES
+      species_sets: [single]
 
-    - name: GAM_AR
+#    - name: GAM_AR
+#      species_sets: [all]
 
-    - name: GAM_VAR
+#    - name: GAM_VAR
+#      species_sets: [all]
 
-    - name: SIMPLE
+#    - name: SIMPLE
+#      species_sets: [all]
