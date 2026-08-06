@@ -238,37 +238,69 @@ run_window <- function(train_start) {
   ))
 
   # Fit, evaluate and plot one run at a time so that only a single model is
-  # held in memory at once
+  # held in memory at once. A run with nothing left after the occupancy filter
+  # is dropped, or a run that fails, is scored as NAs, so the rest of the nb_fits
+  # can complete successfully.
   evaluations <- purrr::map(run_plan, function(run) {
     data_split <- data_splits[[run$species_set]]
-    model <- fit_model(
-      run$model,
-      data_split$train,
-      data_split$test,
-      data_split$species_list
+    if (length(data_split$species_list) == 0) {
+      return(NULL)
+    }
+
+    evaluation <- tryCatch(
+      {
+        model <- fit_model(
+          run$model,
+          data_split$train,
+          data_split$test,
+          data_split$species_list
+        )
+        evaluation <- evaluate_model(
+          model,
+          run$model,
+          run$species_set,
+          test_start,
+          data_split$species_list
+        )
+        plot_run_forecasts(
+          model,
+          run$label,
+          tidy_score(evaluation$score, run$model, run$separately),
+          data_split$species_list,
+          test_start,
+          trace_plots = analysis_config$trace_plot
+        )
+        rm(model)
+        evaluation
+      },
+      error = function(e) {
+        message(glue(
+          "{run$label} failed for test start {test_start}: {conditionMessage(e)}"
+        ))
+        list(
+          score = na_scores(
+            data_split$species_list,
+            run$species_set,
+            test_start
+          ),
+          summary = NULL,
+          loo = NULL
+        )
+      }
     )
-    evaluation <- evaluate_model(
-      model,
-      run$model,
-      run$species_set,
-      test_start,
-      data_split$species_list
-    )
-    plot_run_forecasts(
-      model,
-      run$label,
-      tidy_score(evaluation$score, run$model, run$separately),
-      data_split$species_list,
-      test_start,
-      trace_plots = analysis_config$trace_plot
-    )
-    rm(model)
     gc()
     evaluation
-  }) |>
-    purrr::set_names(purrr::map_chr(run_plan, "label"))
+  })
+
+  # Keep the run plan aligned with the runs that produced something
+  fitted_runs <- run_plan[!purrr::map_lgl(evaluations, is.null)]
+  evaluations <- purrr::compact(evaluations) |>
+    purrr::set_names(purrr::map_chr(fitted_runs, "label"))
 
   distances <- purrr::imap(data_splits, function(data_split, set_name) {
+    if (length(data_split$species_list) == 0) {
+      return(NULL)
+    }
     data_train <- data_split$train
     data_test <- data_split$test
     species_str <- paste(data_split$species_list, collapse = "_")
@@ -311,8 +343,8 @@ run_window <- function(train_start) {
   # Keyed by model rather than run label so BASELINE is recognisable; runs are
   # kept apart by the species_set column carried on each score
   scores <- purrr::map(evaluations, "score") |>
-    purrr::set_names(purrr::map_chr(run_plan, "model")) |>
-    get_skill_scores(purrr::map_lgl(run_plan, "separately"))
+    purrr::set_names(purrr::map_chr(fitted_runs, "model")) |>
+    get_skill_scores(purrr::map_lgl(fitted_runs, "separately"))
 
   gc()
 
@@ -335,6 +367,13 @@ results <- future_map(
 
 errored <- purrr::map_lgl(results, ~ !is.null(.x$error))
 if (any(errored)) {
+  purrr::walk2(
+    train_starts[errored],
+    purrr::map(results[errored], "error"),
+    \(train_start, error) message(glue(
+      "train_start {train_start} failed: {conditionMessage(error)}"
+    ))
+  )
   warning(glue(
     "{sum(errored)} window(s) failed: train_starts {paste(train_starts[errored], collapse=', ')}"
   ))
