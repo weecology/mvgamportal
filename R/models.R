@@ -84,6 +84,26 @@ check_model_definitions <- function(model_names) {
   invisible(model_names)
 }
 
+# Stand in for the scores of a run that failed, matching the shape score()
+# returns, so one bad run does not take the rest of the window with it.
+na_scores <- function(species_list, species_set, test_start, horizon = 12) {
+  score_df <- purrr::map(
+    purrr::set_names(as.character(species_list)),
+    \(species) data.frame(eval_horizon = seq_len(horizon), score = NA_real_)
+  )
+  score_df$all_series <- data.frame(
+    eval_horizon = seq_len(horizon),
+    score = NA_real_
+  )
+  score_df$test_start_newmoonnumber <- test_start
+  score_df$species_set <- species_set
+  score_df$species_list <- paste(species_list, collapse = "_")
+  score_df$rhat <- NA_real_
+  score_df$prhat_high <- NA_real_
+  score_df$n_divergences <- NA_integer_
+  score_df
+}
+
 # Score, summarize and LOO a fitted model, tagging each output with the window
 # and species it came from so results can be combined across windows.
 evaluate_model <- function(
