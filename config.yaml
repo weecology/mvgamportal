@@ -44,6 +44,12 @@ default:
     - name: AR_SINGLE_SPECIES
       species_sets: [single]
 
+    - name: sAR_separate
+      species_sets: [single]
+
+    - name: tempAR_separate
+      species_sets: [single]
+
 #    - name: GAM_AR
 #      species_sets: [all]
 
