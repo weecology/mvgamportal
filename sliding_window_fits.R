@@ -18,11 +18,12 @@ source("R/split_train_test.R")
 analysis_config <- config::get(file = "config.yaml")
 model_config <- analysis_config$models
 names(model_config) <- purrr::map_chr(model_config, "name")
-check_model_definitions(names(model_config))
+# BASELINE is fit for every species set rather than configured, so check it too
+check_model_definitions(c("BASELINE", names(model_config)))
 
 # Turn the configured species groups into one entry per set of species that
-# gets fit together. A group with `separately` becomes one entry per species,
-# labelled by species name rather than by group name.
+# gets fit together. A group with `separately: yes` becomes one entry per
+# species, labelled by species name rather than by group name.
 expand_species_sets <- function(species_sets, all_species) {
   expanded <- purrr::flatten(purrr::map(species_sets, function(species_set) {
     species <- species_set$species %||% all_species
@@ -52,17 +53,25 @@ expand_species_sets <- function(species_sets, all_species) {
 # into one run per species.
 build_run_plan <- function(model_config, species_sets) {
   groups <- purrr::map_chr(species_sets, "group")
-  purrr::flatten(purrr::map(model_config, function(model) {
+  make_run <- function(model_name, set_name) list(
+    model = model_name,
+    species_set = set_name,
+    separately = species_sets[[set_name]]$separately,
+    label = paste(model_name, set_name, sep = "_")
+  )
+
+  runs <- purrr::flatten(purrr::map(model_config, function(model) {
     set_names <- names(species_sets)[
       groups %in% (model$species_sets %||% groups)
     ]
-    purrr::map(set_names, \(set_name) list(
-      model = model$name,
-      species_set = set_name,
-      separately = species_sets[[set_name]]$separately,
-      label = paste(model$name, set_name, sep = "_")
-    ))
+    purrr::map(set_names, \(set_name) make_run(model$name, set_name))
   }))
+
+  baseline_runs <- purrr::map(
+    unique(purrr::map_chr(runs, "species_set")),
+    \(set_name) make_run("BASELINE", set_name)
+  )
+  c(baseline_runs, runs)
 }
 
 # Set number of workers. Each worker spawns 4 cmdstanr chains, so total

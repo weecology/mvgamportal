@@ -7,8 +7,8 @@
 # `trace_plot: yes` writes an MCMC trace plot for every model; set it to no
 # to skip them.
 #
-# BASELINE is the reference model that skill scores are computed against, so
-# it should stay in this list unless skill scores are not needed.
+# The BASELINE is fit automatically to each species set and so is not included
+# in the config.
 default:
   # Length of the training window, in newmoons.
   train_win_width: 60
@@ -38,9 +38,6 @@ default:
   # it to fit that model to every group. Note VAR() needs more than one
   # species, so GAM_VAR cannot be run on a single-species group.
   models:
-    - name: BASELINE
-      species_sets: [single]
-
     - name: AR_SINGLE_SPECIES
       species_sets: [single]
 
