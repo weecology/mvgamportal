@@ -5,3 +5,6 @@ mvgamportal.Rproj
 mvgam-sample-output.RDS
 PortalData/
 .positai
+figures/
+*.rds
+*.log
