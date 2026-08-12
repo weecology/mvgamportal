@@ -64,6 +64,8 @@ fit_model <- function(model_name, data_train, data_test, species_list) {
     GAM_AR = fit_GAM_AR(data_train, data_test, species_list),
     GAM_VAR = fit_GAM_VAR(data_train, data_test, species_list),
     SIMPLE = fit_SIMPLE(data_train, data_test, species_list),
+    sAR_separate = fit_sAR_separate(data_train, data_test, species_list),
+    tempAR_separate = fit_tempAR_separate(data_train, data_test, species_list),
     stop(glue::glue("No fit_model() branch for model '{model_name}'"))
   )
 }

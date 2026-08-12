@@ -61,7 +61,7 @@ moon_dates <- load_datafile("Rodents/moon_dates.csv", na.strings = c("NA")) |>
 weather <- weather(
   level = "daily",
   fill = TRUE,
-  horizon = 365) |> 
+  horizon = 365) |>
   left_join(moon_dates, by = c("date"="censusdate")) |>
  mutate(
   mintemp = slide_index_dbl(
@@ -107,17 +107,17 @@ min_newmoon <- min(ndvi$newmoonnumber)
 ndvi_seasons <- ndvi |>
   group_by(year) |>
   summarise(winter_ndvi=mean(ndvi[month %in% 3:4]),
-            summer_ndvi=mean(ndvi[month %in% 7:9])) 
+            summer_ndvi=mean(ndvi[month %in% 7:9]))
 
 ndvi <- ndvi |>
   mutate(winter_ndvi = ifelse(
-    month < 5, 
-    ndvi_seasons$winter_ndvi[match(year-1, ndvi_seasons$year)], 
+    month < 5,
+    ndvi_seasons$winter_ndvi[match(year-1, ndvi_seasons$year)],
     ndvi_seasons$winter_ndvi[match(year, ndvi_seasons$year)]
   ),
   summer_ndvi = ifelse(
-    month < 10, 
-    ndvi_seasons$summer_ndvi[match(year-1, ndvi_seasons$year)], 
+    month < 10,
+    ndvi_seasons$summer_ndvi[match(year-1, ndvi_seasons$year)],
     ndvi_seasons$summer_ndvi[match(year, ndvi_seasons$year)]
   )) |>
   dplyr::select(-c(year,month,newmoondate))
@@ -190,7 +190,7 @@ model_dat <- rodent_data |>
     series = species,
     time = newmoonnumber - (min(newmoonnumber) - 1)
   ) |>
-  dplyr::select(time, y, series, newmoonnumber, meantemp:maxtemp_lag_6) |>
+  dplyr::select(time, y, series, newmoonnumber, censusdate, meantemp:maxtemp_lag_6) |>
   arrange(time, series)
 
 # Compared to Clarke et al. 2025 we don't need to filter species
@@ -239,7 +239,8 @@ data_all <- list(
   y = model_dat$y,
   series = model_dat$series,
   time = model_dat$time,
-  newmoonnumber = model_dat$newmoonnumber
+  newmoonnumber = model_dat$newmoonnumber,
+  censusmonth = month(model_dat$censusdate)
 )
 
 saveRDS(data_all, file = "data_all.rds")
@@ -303,6 +304,7 @@ data_heteromyid <- list(
   y = model_dat_heteromyids$y,
   series = droplevels(model_dat_heteromyids$series),
   time = model_dat_heteromyids$time,
-  newmoonnumber = model_dat_heteromyids$newmoonnumber
+  newmoonnumber = model_dat_heteromyids$newmoonnumber,
+  censusmonth = month(model_dat$censusdate)
 )
 saveRDS(data_heteromyid, file = "data_heteromyid.rds")
