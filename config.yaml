@@ -19,9 +19,9 @@ default:
   # Which forecast windows to run, as newmoonnumbers passed to seq().
   # Omit this block entirely to run every window that fits in the data.
   test_starts:
-    from: 200
+    from: 156
     to: 500
-    by: 40
+    by: 1
 
   # Groups of species to fit models to. Omit `species` to use every species in
   # the data. `separately: yes` fits one model per species in the list instead
@@ -31,7 +31,7 @@ default:
     - name: all
 
     - name: single
-      species: [DM]
+      species: [DM, DO, DS, PB, PP, PF]
       separately: yes
 
   # `species_sets` lists which of the groups above to fit each model to; omit
