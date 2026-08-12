@@ -27,7 +27,7 @@ check_model_definitions(c("BASELINE", names(model_config)))
 expand_species_sets <- function(species_sets, all_species) {
   expanded <- purrr::flatten(purrr::map(species_sets, function(species_set) {
     species <- species_set$species %||% all_species
-    if (!is.null(species_set$separately)) {
+    if (species_set$separately %||% FALSE) {
       purrr::map(species, \(focal_species) list(
         name = focal_species,
         group = species_set$name,
