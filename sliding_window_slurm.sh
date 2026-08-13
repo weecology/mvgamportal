@@ -30,5 +30,6 @@ date;hostname;pwd
 
 # Load R and run a script named my_R_script.R
 ml R
-Rscript mvgam_install.R
+Rscript -e 'if (!requireNamespace("renv", quietly = TRUE)) {install.packages("renv")}'
+Rscript -e 'renv::restore(prompt=FALSE)'
 Rscript sliding_window_fits.R
