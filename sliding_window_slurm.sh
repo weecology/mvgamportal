@@ -33,4 +33,6 @@ ml R
 ml pandoc
 Rscript -e 'if (!requireNamespace("renv", quietly = TRUE)) {install.packages("renv")}'
 Rscript -e 'renv::restore(prompt=FALSE)'
+Rscript -e 'cmdstanr::check_cmdstan_toolchain()'
+Rscript -e 'cmdstanr::install_cmdstan()'
 Rscript sliding_window_fits.R
