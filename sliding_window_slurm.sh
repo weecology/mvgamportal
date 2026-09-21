@@ -15,15 +15,16 @@
 #SBATCH --nodes=1
 
 # Number of tasks (usually translate to processor cores) to use: important! this means the number of mpi ranks used, useless if you are not using Rmpi)
-#SBATCH --ntasks=26
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=26
 
 # Memory
-#SBATCH --mem=4gb
+#SBATCH --mem=26gb
 
 # Job run time in
 # [DAYS]:HOURS:MINUTES:SECONDS
 # [DAYS] are optional, use when it is convenient
-#SBATCH --time=24:00:00
+#SBATCH --time=96:00:00
 
 # Save some useful information to the "output" file
 date;hostname;pwd

@@ -20,7 +20,7 @@ default:
   # Omit this block entirely to run every window that fits in the data.
   test_starts:
     from: 156
-    to: 500
+    to: 526
     by: 1
 
   # Groups of species to fit models to. Omit `species` to use every species in
@@ -47,11 +47,11 @@ default:
     - name: tempAR_separate
       species_sets: [single]
 
-#    - name: GAM_AR
-#      species_sets: [all]
+    - name: GAM_AR
+      species_sets: [all]
 
-#    - name: GAM_VAR
-#      species_sets: [all]
+    - name: GAM_VAR
+      species_sets: [all]
 
-#    - name: SIMPLE
-#      species_sets: [all]
+    - name: SIMPLE
+      species_sets: [all]
