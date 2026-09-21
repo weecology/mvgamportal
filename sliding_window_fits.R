@@ -77,7 +77,7 @@ build_run_plan <- function(model_config, species_sets) {
 # Set number of workers. Each worker spawns 4 cmdstanr chains, so total
 # cores ~= n_workers * 4. To run on HPC set MVGAM_N_WORKERS environmental
 # variable based on number of requested cores
-n_workers <- as.integer(Sys.getenv("MVGAM_N_WORKERS", unset = "8"))
+n_workers <- as.integer(Sys.getenv("MVGAM_N_WORKERS", unset = "20"))
 plan(multisession, workers = n_workers / 4)
 
 data_all <- readRDS("data_heteromyid.rds")
