@@ -104,7 +104,25 @@ skill_score_app <- function(scores_path = "scores.rds", figures_path = "figures"
   # BASELINE is the reference every skill score is computed against, so its
   # own skill score is always 0
   scores <- readRDS(scores_path) |>
-    filter(model != "BASELINE", is.finite(skill_score))
+    filter(model != "BASELINE", is.finite(skill_score)) |>
+    group_by(
+      test_start_newmoonnumber,
+      species_set,
+      species_list,
+      species,
+      model
+    ) |>
+    arrange(eval_horizon, .by_group = TRUE) %>%
+    mutate(
+      score_2_horizons = score + lead(score),
+      baseline_2_horizons = baseline_score + lead(baseline_score),
+      score_3_horizons = score + lead(score, 1) + lead(score, 2),
+      baseline_3_horizons = baseline_score + lead(baseline_score, 1) + lead(baseline_score, 2)
+    ) |>
+    mutate(skill_score2 = 1 - score_2_horizons / baseline_2_horizons,
+           skill_score3 = 1 - score_3_horizons / baseline_3_horizons
+    ) |>
+    ungroup()
 
   # Lets the forecast panels be served straight out of the figures directory,
   # which is otherwise outside anything the app can serve
@@ -136,7 +154,16 @@ skill_score_app <- function(scores_path = "scores.rds", figures_path = "figures"
       numericInput("y_min", "Time series y-axis minimum", -5, step = 1),
       checkboxInput("show_regimes", "Shade regime periods", TRUE),
       numericInput("binwidth", "Histogram bin width", 0.1, min = 0.01, step = 0.05),
-      numericInput("pool_below", "Pool skill scores below", -1, step = 0.5)
+      numericInput("pool_below", "Pool skill scores below", -1, step = 0.5),
+      selectizeInput(
+        "score_metric",
+        "Skill Score to display:",
+        choices = c(
+          "1 Horizon" = "skill_score",
+          "2 Horizons" = "skill_score2",
+          "3 Horizons" = "skill_score3"
+        )
+      )
     ),
     navset_card_tab(
       nav_panel(
@@ -156,7 +183,8 @@ skill_score_app <- function(scores_path = "scores.rds", figures_path = "figures"
                model %in% input$models,
                eval_horizon %in% as.numeric(input$horizons),
                species_set %in% input$species_sets,
-               between(newmoonnumber, input$newmoons[1], input$newmoons[2]))
+               between(newmoonnumber, input$newmoons[1], input$newmoons[2])) |>
+        mutate(skill_score = .data[[input$score_metric]])
     })
 
     plot_height <- function() max(400, 200 * length(input$species))
