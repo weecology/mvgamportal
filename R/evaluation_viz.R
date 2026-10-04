@@ -4,14 +4,8 @@ library(ggpp)
 library(patchwork)
 
 scores <- readRDS("scores.rds")
-env_distances <- readRDS("env_distances.rds")
-comp_distances <- readRDS("composition_distances.rds")
-
-env_dfs <- lapply(env_distances, data.frame, stringsAsFactors = FALSE)
-environment <- bind_rows(env_dfs)
-
-comp_dfs <- lapply(comp_distances, data.frame, stringsAsFactors = FALSE)
-composition <- bind_rows(comp_dfs)
+environment <- readRDS("env_distances.rds")
+composition <- readRDS("composition_distances.rds")
 environment$composition_dist <- composition[,1]
 
 skill_scores <- scores %>% filter(model != "BASELINE")

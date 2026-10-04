@@ -35,6 +35,22 @@ One or more sets of species to fit is declared in `species_sets`, e.g.:
 
 Setting `name` to `all` will include all species in the data. Setting `separately` to `yes` (default is `no`) will fit the model separately to each species instead of fitting it jointly.
 
+## Updating model results
+
+By default each run adds its results to the existing `.rds` outputs (`scores.rds`, `summaries.rds`, `loos.rds`, `env_distances.rds`, `composition_distances.rds`) rather than replacing them.
+
+`existing_runs` controls what happens to a run (defined as a unique combination of model, species set, and window) that is already in `scores.rds`:
+
+```yml
+  existing_runs: skip       # keep it and fit only what is missing (default)
+
+  models:
+    - name: GAM_AR
+      existing_runs: overwrite   # refit just this model, e.g. after changing it
+```
+
+`skip` keeps existing runs. `overwrite` refits and replaces the results. model level settings setting override the global one to allow refitting a single model. BASELINE follows the global setting. Skill scores are recomputed over all of the combined results, so refitting BASELINE updates every model's skill scores. Nothing records which `train_win_width` or data produced the saved results, so delete the `.rds` files before changing either.
+
 ## Creating and testing new models
 
 ### Add a new model
