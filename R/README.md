@@ -65,7 +65,18 @@ Add the model to `config.yml` so that it is run during the main runs.
 
 ## Using the visualization app
 
-There is a shiny app for visualizing forecast scores through time. It can be run from the shell:
+There is a shiny app for visualizing forecast scores through time. 
+
+### Get the most recent output from the HPC
+
+```r
+source("R/download_outputs.R")
+download_outputs()
+```
+
+### Run the shiny app
+
+It can be run from the shell:
 
 ```sh
 Rscript app.R
