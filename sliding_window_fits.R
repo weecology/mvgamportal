@@ -154,7 +154,7 @@ train_win_width <- analysis_config$train_win_width
 
 # Run all possible windows unless limited by config.yaml
 if (is.null(analysis_config$test_starts)) {
-  train_starts <- newmoon_min:(newmoon_max - train_win_width - 12 + 1)
+  train_starts <- newmoon_min:(newmoon_max - train_win_width - 13 + 1)
 } else {
   test_starts <- seq(
     from = analysis_config$test_starts$from,
@@ -167,7 +167,7 @@ if (is.null(analysis_config$test_starts)) {
 run_window <- function(train_start) {
   train_end <- train_start + train_win_width - 1
   test_start <- train_end + 1
-  test_end <- test_start + 12 - 1
+  test_end <- test_start + 13 - 1
   print(glue("Training test start {test_start} (newmoon)"))
 
   data_splits <- purrr::map(species_sets, \(species_set) split_train_test(

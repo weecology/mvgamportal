@@ -114,13 +114,10 @@ skill_score_app <- function(scores_path = "scores.rds", figures_path = "figures"
     ) |>
     arrange(eval_horizon, .by_group = TRUE) %>%
     mutate(
-      score_2_horizons = score + lead(score),
-      baseline_2_horizons = baseline_score + lead(baseline_score),
-      score_3_horizons = score + lead(score, 1) + lead(score, 2),
-      baseline_3_horizons = baseline_score + lead(baseline_score, 1) + lead(baseline_score, 2)
+      score_3_horizons = zoo::rollmean(score, k = 3, fill = NA, align = "center"),
+      baseline_3_horizons = zoo::rollmean(baseline_score, k = 3, fill = NA, align = "center")
     ) |>
-    mutate(skill_score2 = 1 - score_2_horizons / baseline_2_horizons,
-           skill_score3 = 1 - score_3_horizons / baseline_3_horizons
+    mutate(skill_score3 = 1 - score_3_horizons / baseline_3_horizons
     ) |>
     ungroup()
 
@@ -160,7 +157,6 @@ skill_score_app <- function(scores_path = "scores.rds", figures_path = "figures"
         "Skill Score to display:",
         choices = c(
           "1 Horizon" = "skill_score",
-          "2 Horizons" = "skill_score2",
           "3 Horizons" = "skill_score3"
         )
       )
