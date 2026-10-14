@@ -1,7 +1,5 @@
 library(dplyr)
 library(cmdstanr)
-library(dad)
-library(fitdistrplus)
 library(forecast)
 library(mvgam)
 library(portalr)
@@ -92,62 +90,6 @@ run_plan <- build_run_plan(model_config, species_sets)
 # This prevents their splits and distances from being computed for no reason
 species_sets <- species_sets[unique(purrr::map_chr(run_plan, "species_set"))]
 
-get_composition_distance <- function(
-  comp_data_train,
-  comp_data_test,
-  test_start
-) {
-  get_probability_masses <- function(comp_data, split) {
-    cleaned <- comp_data |> drop_na()
-    tryCatch(
-      {
-        nb_fits <- cleaned |>
-          group_by(species) |>
-          summarize(fit = list(fitdist(abundance, "nbinom"))) |>
-          mutate(
-            size = map_dbl(fit, ~ .x$estimate["size"]),
-            mu = map_dbl(fit, ~ .x$estimate["mu"])
-          ) |>
-          rowwise() |>
-          mutate(prob_mass = list(dnbinom(0:200, mu = mu, size = size)))
-        unlist(nb_fits$prob_mass) / nrow(nb_fits)
-      },
-      error = function(e) {
-        species_abund <- cleaned |>
-          group_by(species) |>
-          summarize(vals = paste(abundance, collapse = ","), .groups = "drop")
-        abund_str <- paste(
-          paste0(species_abund$species, ": ", species_abund$vals),
-          collapse = "; "
-        )
-        cat(
-          format(Sys.time(), "[%Y-%m-%d %H:%M:%S]"),
-          sprintf(
-            "test_start=%s, split=%s, abundances: %s\n",
-            test_start,
-            split,
-            abund_str
-          ),
-          file = "comp_dist_poisson_fallbacks.log",
-          append = TRUE
-        )
-        pois_fits <- cleaned |>
-          group_by(species) |>
-          summarize(fit = list(fitdist(abundance, "pois", method = "mme"))) |>
-          mutate(lambda = map_dbl(fit, ~ .x$estimate["lambda"])) |>
-          rowwise() |>
-          mutate(prob_mass = list(dpois(0:200, lambda = lambda)))
-        unlist(pois_fits$prob_mass) / nrow(pois_fits)
-      }
-    )
-  }
-
-  train_prob_vector <- get_probability_masses(comp_data_train, "train")
-  test_prob_vector <- get_probability_masses(comp_data_test, "test")
-
-  return(ddhellingerpar(train_prob_vector, test_prob_vector))
-}
-
 newmoon_min <- min(data_all$newmoonnumber)
 newmoon_max <- max(data_all$newmoonnumber)
 train_win_width <- analysis_config$train_win_width
@@ -226,8 +168,7 @@ run_window <- function(train_start) {
             run$species_set,
             test_start
           ),
-          summary = NULL,
-          loo = NULL
+          summary = NULL
         )
       }
     )
@@ -240,49 +181,6 @@ run_window <- function(train_start) {
   evaluations <- purrr::compact(evaluations) |>
     purrr::set_names(purrr::map_chr(fitted_runs, "label"))
 
-  distances <- purrr::imap(data_splits, function(data_split, set_name) {
-    if (length(data_split$species_list) == 0) {
-      return(NULL)
-    }
-    data_train <- data_split$train
-    data_test <- data_split$test
-    species_str <- paste(data_split$species_list, collapse = "_")
-
-    comp_data_train <- bind_cols(
-      species = data_train$series,
-      abundance = data_train$y
-    )
-    comp_data_test <- bind_cols(
-      species = data_test$series,
-      abundance = data_test$y
-    )
-    composition_distance <- data.frame(
-      comp_dist = get_composition_distance(
-        comp_data_train,
-        comp_data_test,
-        test_start
-      )
-    )
-    composition_distance$test_start_newmoonnumber <- test_start
-    composition_distance$species_set <- set_name
-    composition_distance$species_list <- species_str
-
-    env_train <- data.frame(
-      ndvi = data_train$ndvi,
-      mintemp = data_train$meantemp_lag_1
-    )
-    env_test <- data.frame(
-      ndvi = data_test$ndvi,
-      mintemp = data_test$meantemp_lag_1
-    )
-    env_distance <- data.frame(enviro_dist = hellinger(env_train, env_test))
-    env_distance$test_start_newmoonnumber <- test_start
-    env_distance$species_set <- set_name
-    env_distance$species_list <- species_str
-
-    list(composition = composition_distance, env = env_distance)
-  })
-
   # Keyed by model rather than run label so BASELINE is recognisable; runs are
   # kept apart by the species_set column carried on each score
   scores <- purrr::map(evaluations, "score") |>
@@ -293,10 +191,7 @@ run_window <- function(train_start) {
 
   list(
     scores = scores,
-    summaries = purrr::map(evaluations, "summary"),
-    loos = purrr::map(evaluations, "loo"),
-    env_distance = purrr::map_dfr(distances, "env"),
-    composition_distance = purrr::map_dfr(distances, "composition")
+    summaries = purrr::map(evaluations, "summary")
   )
 }
 
@@ -325,12 +220,8 @@ results <- purrr::map(results, "result")
 
 scores <- purrr::map_dfr(results, "scores")
 summaries <- purrr::flatten(purrr::map(results, "summaries"))
-loos <- purrr::flatten(purrr::map(results, "loos"))
-env_distances <- purrr::map(results, "env_distance")
-composition_distances <- purrr::map(results, "composition_distance")
 
 saveRDS(scores, "scores.rds")
 saveRDS(summaries, "summaries.rds")
-saveRDS(loos, "loos.rds")
-saveRDS(env_distances, "env_distances.rds")
-saveRDS(composition_distances, "composition_distances.rds")
+
+if(analysis_config$calc_dist) {source("R/dist_windows.R")}

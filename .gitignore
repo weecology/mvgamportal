@@ -2,6 +2,7 @@
 mvgamportal.Rproj
 .Rbuildignore
 .Rhistory
+.Rapp.history
 mvgam-sample-output.RDS
 PortalData/
 .positai
