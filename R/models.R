@@ -138,6 +138,7 @@ evaluate_model <- function(
   model_loo <- loo(model)
   model_loo$test_start_newmoonnumber <- test_start
   model_loo$species_set <- species_set
+  model_loo$model <- model_name
 
   list(score = model_score, summary = model_summary, loo = model_loo)
 }

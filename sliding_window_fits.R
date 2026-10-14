@@ -50,26 +50,33 @@ expand_species_sets <- function(species_sets, all_species) {
 # Convert config info into models to be run.
 # One model per model name (from config) per species group.
 # Models name the groups from config.yaml and`separately` expands
-# into one run per species.
-build_run_plan <- function(model_config, species_sets) {
+# into one run per species. `existing_runs` sets whether to rerun
+# results already in the rds files and replace them or skip and keep
+# the old values.
+build_run_plan <- function(model_config, species_sets, existing_runs) {
   groups <- purrr::map_chr(species_sets, "group")
-  make_run <- function(model_name, set_name) list(
+  make_run <- function(model_name, set_name, existing_runs) list(
     model = model_name,
     species_set = set_name,
     separately = species_sets[[set_name]]$separately,
-    label = paste(model_name, set_name, sep = "_")
+    label = paste(model_name, set_name, sep = "_"),
+    existing_runs = existing_runs
   )
 
   runs <- purrr::flatten(purrr::map(model_config, function(model) {
     set_names <- names(species_sets)[
       groups %in% (model$species_sets %||% groups)
     ]
-    purrr::map(set_names, \(set_name) make_run(model$name, set_name))
+    purrr::map(set_names, \(set_name) make_run(
+      model$name,
+      set_name,
+      model$existing_runs %||% existing_runs
+    ))
   }))
 
   baseline_runs <- purrr::map(
     unique(purrr::map_chr(runs, "species_set")),
-    \(set_name) make_run("BASELINE", set_name)
+    \(set_name) make_run("BASELINE", set_name, existing_runs)
   )
   c(baseline_runs, runs)
 }
@@ -86,7 +93,11 @@ species_sets <- expand_species_sets(
   analysis_config$species_sets,
   levels(data_all$series)
 )
-run_plan <- build_run_plan(model_config, species_sets)
+run_plan <- build_run_plan(
+  model_config,
+  species_sets,
+  analysis_config$existing_runs %||% "skip"
+)
 
 # Drop species group groups that no model in the config uses
 # This prevents their splits and distances from being computed for no reason
@@ -164,13 +175,64 @@ if (is.null(analysis_config$test_starts)) {
   train_starts <- test_starts - train_win_width
 }
 
-run_window <- function(train_start) {
+output_files <- c(
+  scores = "scores.rds",
+  summaries = "summaries.rds",
+  loos = "loos.rds",
+  env_distance = "env_distances.rds",
+  composition_distance = "composition_distances.rds"
+)
+read_results <- function(path, empty) {
+  if (file.exists(path)) readRDS(path) else empty
+}
+no_distances <- tibble(
+  species_set = character(),
+  test_start_newmoonnumber = numeric()
+)
+no_scores <- mutate(no_distances, model = character())
+existing <- list(
+  # Skill scores are recomputed once everything is combined
+  scores = read_results(output_files[["scores"]], no_scores) |>
+    dplyr::select(-any_of(c("baseline_score", "skill_score"))),
+  summaries = read_results(output_files[["summaries"]], list()),
+  loos = read_results(output_files[["loos"]], list()),
+  # bind_rows() also reads distances saved as one data frame per window
+  env_distance = bind_rows(
+    read_results(output_files[["env_distance"]], no_distances)
+  ),
+  composition_distance = bind_rows(
+    read_results(output_files[["composition_distance"]], no_distances)
+  )
+)
+
+# Identifies a run across windows, for matching runs to the saved results
+run_id <- function(model, species_set, test_start) {
+  paste(model, species_set, test_start, sep = "|")
+}
+completed_runs <- with(
+  existing$scores,
+  run_id(model, species_set, test_start_newmoonnumber)
+)
+
+# Only keep runs that are flagged to overwrite or are not present in RDS files
+window_plans <- purrr::map(train_starts + train_win_width, function(test_start) {
+  purrr::keep(run_plan, \(run) {
+    run$existing_runs == "overwrite" ||
+      !run_id(run$model, run$species_set, test_start) %in% completed_runs
+  })
+})
+has_runs <- lengths(window_plans) > 0
+train_starts <- train_starts[has_runs]
+window_plans <- window_plans[has_runs]
+
+run_window <- function(train_start, window_plan) {
   train_end <- train_start + train_win_width - 1
   test_start <- train_end + 1
   test_end <- test_start + 13 - 1
   print(glue("Training test start {test_start} (newmoon)"))
 
-  data_splits <- purrr::map(species_sets, \(species_set) split_train_test(
+  window_sets <- species_sets[unique(purrr::map_chr(window_plan, "species_set"))]
+  data_splits <- purrr::map(window_sets, \(species_set) split_train_test(
     data_all,
     gap = 0,
     train_start = train_start,
@@ -184,7 +246,7 @@ run_window <- function(train_start) {
   # held in memory at once. A run with nothing left after the occupancy filter
   # is dropped, or a run that fails, is scored as NAs, so the rest of the nb_fits
   # can complete successfully.
-  evaluations <- purrr::map(run_plan, function(run) {
+  evaluations <- purrr::map(window_plan, function(run) {
     data_split <- data_splits[[run$species_set]]
     if (length(data_split$species_list) == 0) {
       return(NULL)
@@ -236,7 +298,7 @@ run_window <- function(train_start) {
   })
 
   # Keep the run plan aligned with the runs that produced something
-  fitted_runs <- run_plan[!purrr::map_lgl(evaluations, is.null)]
+  fitted_runs <- window_plan[!purrr::map_lgl(evaluations, is.null)]
   evaluations <- purrr::compact(evaluations) |>
     purrr::set_names(purrr::map_chr(fitted_runs, "label"))
 
@@ -283,15 +345,20 @@ run_window <- function(train_start) {
     list(composition = composition_distance, env = env_distance)
   })
 
-  # Keyed by model rather than run label so BASELINE is recognisable; runs are
-  # kept apart by the species_set column carried on each score
-  scores <- purrr::map(evaluations, "score") |>
-    purrr::set_names(purrr::map_chr(fitted_runs, "model")) |>
-    get_skill_scores(purrr::map_lgl(fitted_runs, "separately"))
+  scores <- purrr::map2_dfr(
+    evaluations,
+    fitted_runs,
+    \(evaluation, run) tidy_score(evaluation$score, run$model, run$separately)
+  )
 
   gc()
 
   list(
+    # List all runs attempted. Ensures replacement if run produced no rows
+    attempted = purrr::map_chr(
+      window_plan,
+      \(run) run_id(run$model, run$species_set, test_start)
+    ),
     scores = scores,
     summaries = purrr::map(evaluations, "summary"),
     loos = purrr::map(evaluations, "loo"),
@@ -301,8 +368,9 @@ run_window <- function(train_start) {
 }
 
 safe_run_window <- purrr::safely(run_window)
-results <- future_map(
+results <- future_map2(
   train_starts,
+  window_plans,
   safe_run_window,
   .progress = TRUE,
   .options = furrr_options(seed = TRUE)
@@ -323,14 +391,57 @@ if (any(errored)) {
 }
 results <- purrr::map(results, "result")
 
-scores <- purrr::map_dfr(results, "scores")
-summaries <- purrr::flatten(purrr::map(results, "summaries"))
-loos <- purrr::flatten(purrr::map(results, "loos"))
-env_distances <- purrr::map(results, "env_distance")
-composition_distances <- purrr::map(results, "composition_distance")
+# Update results with new runs
+attempted <- unlist(purrr::map(results, "attempted"))
+keep_unreplaced <- function(results) {
+  purrr::discard(
+    purrr::compact(results),
+    \(result) run_id(
+      result$model,
+      result$species_set,
+      result$test_start_newmoonnumber
+    ) %in% attempted
+  )
+}
+# Distances depend only on the window and species set, so new ones replace old
+update_distances <- function(existing, new) {
+  bind_rows(
+    filter(
+      existing,
+      !paste(species_set, test_start_newmoonnumber) %in%
+        paste(new[["species_set"]], new[["test_start_newmoonnumber"]])
+    ),
+    new
+  )
+}
 
-saveRDS(scores, "scores.rds")
-saveRDS(summaries, "summaries.rds")
-saveRDS(loos, "loos.rds")
-saveRDS(env_distances, "env_distances.rds")
-saveRDS(composition_distances, "composition_distances.rds")
+scores <- bind_rows(
+  filter(
+    existing$scores,
+    !run_id(model, species_set, test_start_newmoonnumber) %in% attempted
+  ),
+  purrr::map_dfr(results, "scores")
+) |>
+  get_skill_scores()
+summaries <- c(
+  keep_unreplaced(existing$summaries),
+  purrr::compact(purrr::flatten(purrr::map(results, "summaries")))
+)
+loos <- c(
+  keep_unreplaced(existing$loos),
+  purrr::compact(purrr::flatten(purrr::map(results, "loos")))
+)
+env_distances <- update_distances(
+  existing$env_distance,
+  purrr::map_dfr(results, "env_distance")
+)
+composition_distances <- update_distances(
+  existing$composition_distance,
+  purrr::map_dfr(results, "composition_distance")
+)
+
+saveRDS(scores, output_files[["scores"]])
+saveRDS(summaries, output_files[["summaries"]])
+saveRDS(loos, output_files[["loos"]])
+saveRDS(env_distances, output_files[["env_distance"]])
+saveRDS(composition_distances, output_files[["composition_distance"]])

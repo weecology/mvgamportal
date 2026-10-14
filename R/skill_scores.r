@@ -37,12 +37,9 @@ tidy_score <- function(score_df, model_name, separately = FALSE) {
     mutate(model = model_name)
 }
 
-get_skill_scores <- function(score_dfs, separately) {
-  scores <- bind_rows(purrr::pmap(
-    list(score_dfs, names(score_dfs), separately),
-    tidy_score
-  ))
-
+# Takes the tidied scores of every run, so skill scores can be computed over
+# results combined from several runs of sliding_window_fits.R
+get_skill_scores <- function(scores) {
   # Matched within species_set so each model is compared against the baseline
   # fit to the same group of species
   baseline_ref <- scores |>

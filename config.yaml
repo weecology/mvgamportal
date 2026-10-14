@@ -16,6 +16,14 @@ default:
   # Write an MCMC trace plot per model alongside the forecast plots.
   trace_plot: no
 
+  # What to do when a run (unique combination of model, species set, and window)
+  # already exists in the output files.
+  # `skip` keeps existing results and does fits that don't exist.
+  # `overwrite` refits and replaces previous results.
+  # Set at the model level to override this global setting,
+  # e.g. to refit just a model that has been changed.
+  existing_runs: skip
+
   # Which forecast windows to run, as newmoonnumbers passed to seq().
   # Omit this block entirely to run every window that fits in the data.
   test_starts:
