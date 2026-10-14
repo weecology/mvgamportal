@@ -37,3 +37,8 @@ Rscript -e 'renv::restore(prompt=FALSE)'
 Rscript -e 'cmdstanr::check_cmdstan_toolchain()'
 Rscript -e 'cmdstanr::install_cmdstan()'
 Rscript sliding_window_fits.R
+
+# Publish the updated outputs for download_outputs(), only if the run succeeded
+if [ $? -eq 0 ]; then
+  Rscript -e 'source("R/publish_outputs.R"); publish_outputs()'
+fi
