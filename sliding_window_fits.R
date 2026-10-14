@@ -88,7 +88,7 @@ species_sets <- expand_species_sets(
 )
 run_plan <- build_run_plan(model_config, species_sets)
 
-# Drop species group groups that no model in the config uses
+# Drop species groups that no model in the config uses
 # This prevents their splits and distances from being computed for no reason
 species_sets <- species_sets[unique(purrr::map_chr(run_plan, "species_set"))]
 
@@ -283,7 +283,7 @@ run_window <- function(train_start) {
     list(composition = composition_distance, env = env_distance)
   })
 
-  # Keyed by model rather than run label so BASELINE is recognisable; runs are
+  # Keyed by model rather than run label so BASELINE is recognizable; runs are
   # kept apart by the species_set column carried on each score
   scores <- purrr::map(evaluations, "score") |>
     purrr::set_names(purrr::map_chr(fitted_runs, "model")) |>
