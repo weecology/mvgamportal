@@ -47,6 +47,9 @@ default:
     - name: tempAR_separate
       species_sets: [single]
 
+    - name: AR
+      species_sets: [all]
+
     - name: GAM_AR
       species_sets: [all]
 
