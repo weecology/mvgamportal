@@ -217,7 +217,7 @@ skill_score_app <- function(scores_path = "scores.rds", figures_path = "figures"
       req(nrow(point) == 1)
 
       run_label <- paste(point$model, point$species_set, sep = "_")
-      figure <- paste0(run_label, "_", point$test_start_newmoonnumber, ".png")
+      figure <- paste0(run_label, "_", point$test_start_newmoonnumber, "_", point$species, ".png")
       showModal(modalDialog(
         title = paste0(run_label, " forecast from newmoon ",
                        point$test_start_newmoonnumber, " — ", point$species,
