@@ -7,8 +7,8 @@
 # `trace_plot: yes` writes an MCMC trace plot for every model; set it to no
 # to skip them.
 #
-# `calc_dist: yes` writes env_distances.rds and composition_distances.rds using 
-# the configured newmoon range and window; set it to no to skip this.
+# `calc_dist: yes` generates env_distances.rds and composition_distances.rds
+# at the end of a run; set it to no to skip this.
 #
 # The BASELINE is fit automatically to each species set and so is not included
 # in the config.
@@ -18,9 +18,13 @@ default:
 
   # Write an MCMC trace plot per model alongside the forecast plots.
   trace_plot: no
-  
+
   # Calculate environmental and composition distance between training and test sets
+  # dist_species sets species used for composition distances.
+  # Species below 30% occupancy in train are dropped from that window just
+  # like for models/forecasts
   calc_dist: yes
+  dist_species: all
 
   # Which forecast windows to run, as newmoonnumbers passed to seq().
   # Omit this block entirely to run every window that fits in the data.

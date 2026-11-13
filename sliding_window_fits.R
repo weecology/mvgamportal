@@ -12,6 +12,8 @@ source("R/skill_scores.r")
 source("R/models.R")
 source("R/forecast_plots.r")
 source("R/split_train_test.R")
+source("R/windows.R")
+source("R/distances.R")
 
 analysis_config <- config::get(file = "config.yaml")
 model_config <- analysis_config$models
@@ -87,38 +89,24 @@ species_sets <- expand_species_sets(
 run_plan <- build_run_plan(model_config, species_sets)
 
 # Drop species groups that no model in the config uses
-# This prevents their splits and distances from being computed for no reason
+# This prevents their splits from being computed for no reason
 species_sets <- species_sets[unique(purrr::map_chr(run_plan, "species_set"))]
 
-newmoon_min <- min(data_all$newmoonnumber)
-newmoon_max <- max(data_all$newmoonnumber)
 train_win_width <- analysis_config$train_win_width
-
-# Run all possible windows unless limited by config.yaml
-if (is.null(analysis_config$test_starts)) {
-  train_starts <- newmoon_min:(newmoon_max - train_win_width - 13 + 1)
-} else {
-  test_starts <- seq(
-    from = analysis_config$test_starts$from,
-    to = analysis_config$test_starts$to,
-    by = analysis_config$test_starts$by %||% 1
-  )
-  train_starts <- test_starts - train_win_width
-}
+train_starts <- get_train_starts(data_all$newmoonnumber, analysis_config)
 
 run_window <- function(train_start) {
-  train_end <- train_start + train_win_width - 1
-  test_start <- train_end + 1
-  test_end <- test_start + 13 - 1
+  window <- get_window(train_start, train_win_width)
+  test_start <- window$test_start
   print(glue("Training test start {test_start} (newmoon)"))
 
   data_splits <- purrr::map(species_sets, \(species_set) split_train_test(
     data_all,
     gap = 0,
-    train_start = train_start,
-    train_end = train_end,
-    test_start = test_start,
-    test_end = test_end,
+    train_start = window$train_start,
+    train_end = window$train_end,
+    test_start = window$test_start,
+    test_end = window$test_end,
     species = species_set$species
   ))
 
@@ -201,22 +189,8 @@ results <- future_map(
   safe_run_window,
   .progress = TRUE,
   .options = furrr_options(seed = TRUE)
-)
-
-errored <- purrr::map_lgl(results, ~ !is.null(.x$error))
-if (any(errored)) {
-  purrr::walk2(
-    train_starts[errored],
-    purrr::map(results[errored], "error"),
-    \(train_start, error) message(glue(
-      "train_start {train_start} failed: {conditionMessage(error)}"
-    ))
-  )
-  warning(glue(
-    "{sum(errored)} window(s) failed: train_starts {paste(train_starts[errored], collapse=', ')}"
-  ))
-}
-results <- purrr::map(results, "result")
+) |>
+  handle_failed_windows(train_starts, "Model fitting")
 
 scores <- purrr::map_dfr(results, "scores")
 summaries <- purrr::flatten(purrr::map(results, "summaries"))
@@ -224,4 +198,6 @@ summaries <- purrr::flatten(purrr::map(results, "summaries"))
 saveRDS(scores, "scores.rds")
 saveRDS(summaries, "summaries.rds")
 
-if(analysis_config$calc_dist) {source("R/dist_windows.R")}
+if (analysis_config$calc_dist) {
+  calculate_distances(data_all, analysis_config)
+}
