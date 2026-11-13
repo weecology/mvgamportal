@@ -35,6 +35,19 @@ One or more sets of species to fit is declared in `species_sets`, e.g.:
 
 Setting `name` to `all` will include all species in the data. Setting `separately` to `yes` (default is `no`) will fit the model separately to each species instead of fitting it jointly.
 
+## Distances between training and test data
+
+Environmental and compositional distances between train and test window are saved to `env_distances.rds` and `composition_distances.rds`.
+They are calculated at the end of a `sliding_window_fits.R` run if `calc_dist` is set to `yes` in `config.yml`. They can also be generated without fitting any models using the stand-alone script:
+
+```sh
+Rscript generate_distances.R
+```
+
+Species used for compositional distances are set with `dist_species`.
+Default is `all`, which uses every species in the data. A list can be used to focus on a subset. E.g., `[DM, DO, PP]`.
+Species below 30% occupancy in train for a window are excluded.
+
 ## Creating and testing new models
 
 ### Add a new model

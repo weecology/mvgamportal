@@ -127,7 +127,6 @@ test_model <- function(
     model = fit,
     scores = scores,
     summary = evaluation$summary,
-    loo = evaluation$loo,
     split = split
   ))
 }
