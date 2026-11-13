@@ -226,8 +226,7 @@ run_window <- function(train_start) {
             run$species_set,
             test_start
           ),
-          summary = NULL,
-          loo = NULL
+          summary = NULL
         )
       }
     )
@@ -294,7 +293,6 @@ run_window <- function(train_start) {
   list(
     scores = scores,
     summaries = purrr::map(evaluations, "summary"),
-    loos = purrr::map(evaluations, "loo"),
     env_distance = purrr::map_dfr(distances, "env"),
     composition_distance = purrr::map_dfr(distances, "composition")
   )
@@ -325,12 +323,10 @@ results <- purrr::map(results, "result")
 
 scores <- purrr::map_dfr(results, "scores")
 summaries <- purrr::flatten(purrr::map(results, "summaries"))
-loos <- purrr::flatten(purrr::map(results, "loos"))
 env_distances <- purrr::map(results, "env_distance")
 composition_distances <- purrr::map(results, "composition_distance")
 
 saveRDS(scores, "scores.rds")
 saveRDS(summaries, "summaries.rds")
-saveRDS(loos, "loos.rds")
 saveRDS(env_distances, "env_distances.rds")
 saveRDS(composition_distances, "composition_distances.rds")
